@@ -215,10 +215,11 @@ JobXray/
     │       └── cached_case.json
     ├── scripts/
     │   └── save_example.py     # runs one real investigation and saves the example
-    ├── tests/
-    │   ├── test_status_rules.py
-    │   ├── test_limits.py
-    │   └── test_quote_check.py
+    ├── tests/                  # pytest; model and web replaced by scripted doubles in helpers.py
+    │   ├── fixtures/           # composite scam messages, saved pages, a chat screenshot
+    │   ├── test_quote_check.py, test_llm_client.py, test_status_rules.py
+    │   ├── test_official_check.py, test_link_input.py, test_image_input.py
+    │   └── test_progress.py, test_challenge.py, test_example.py
     ├── requirements.txt
     └── .env.example            # empty OPENROUTER_API_KEY, default OPENROUTER_MODEL
 ```
