@@ -69,7 +69,7 @@ Build mode: fast (switched from learn after slice 4 — the learner asked the ag
   Learner check: Take a screenshot of a recruiter message (or any job offer image) and paste it into the box. Say whether the transcription matches the image and whether the result makes sense.
   Commit: `Investigate a screenshot through a visible transcription`
 
-- [ ] **7. The progress checklist shows each investigation step as it happens**
+- [x] **7. The progress checklist shows each investigation step as it happens**
   Becomes usable: While an investigation runs, the screen shows the steps as a checklist (analyzing, identifying company and role, checking the recruitment sequence, establishing the official domain, checking official pages), with each step checked off as it finishes.
   Why now: Real web checks take seconds, and an empty screen during that time makes the app look broken. This is also the first place the investigation becomes visibly "work in progress."
   PRD ref: `prd.md > Screens and Layout` (investigation view), `prd.md > Features and Behavior > Investigating an opportunity`
@@ -137,6 +137,8 @@ Reflection:
 Activity mode:
 
 ## Revisions
+
+- Slice 7: the API became start-then-poll (`POST` returns 202 and an id; `GET` returns steps, then the result or a plain error). Step tracking lives in `app/investigation/progress.py` and the in-memory job store in `app/jobs.py` (not named in the spec's file tree). Verified with 4 progress tests and in the browser against a canned-model backend with a delay (midway: read done, extraction active; then the STOP result). The scan line is a plain line, not a gradient, to match the approved look.
 
 - Slice 6 committed before its live-model run (cap exhausted). Verified: 10 screenshot tests (bad type, fake PNG, over-4 MB refused before any model call; transcription shown and used; excerpts checked against the transcription; NO_TEXT gives a plain error; budget 5 for images and 4 otherwise). `llm_client.py` gained `read_image()` for the vision model (`VISION_MODEL`, default `google/gemma-4-31b-it:free`). A generated chat-style screenshot of the fee conversation (`backend/tests/fixtures/fee_screenshot.png`, made with Pillow as a dev-only tool) is ready for the live run.
 

@@ -16,6 +16,7 @@ from app.config import MAX_MODEL_CALLS_IMAGE
 from app.input.image import transcribe
 from app.input.link import read_link
 from app.investigation.plan import career_links, check_domain, propose
+from app.investigation.progress import NoProgress, Progress
 from app.llm.llm_client import LLMClient
 from app.web.scraper import FetchBudgetExceeded, FetchResult, Scraper
 
@@ -74,20 +75,36 @@ class InvestigationResult(BaseModel):
     source: Origin
 
 
-def run_from_link(url: str, client: LLMClient | None = None, scraper: Scraper | None = None) -> InvestigationResult:
+def run_from_link(
+    url: str,
+    client: LLMClient | None = None,
+    scraper: Scraper | None = None,
+    progress: Progress | None = None,
+) -> InvestigationResult:
     """Link input: read the linked page (one fetch from the same budget), then investigate its text."""
     scraper = scraper or Scraper()
+    progress = progress or NoProgress("url")
+    progress.start("read")
     page = read_link(url, scraper)
+    progress.done("read", page.title)
     origin = Origin(source_type="linked_page", source_url=page.url)
-    return run_investigation(page.text, client, scraper, origin)
+    return run_investigation(page.text, client, scraper, origin, progress)
 
 
-def run_from_image(data_url: str, client: LLMClient | None = None, scraper: Scraper | None = None) -> InvestigationResult:
+def run_from_image(
+    data_url: str,
+    client: LLMClient | None = None,
+    scraper: Scraper | None = None,
+    progress: Progress | None = None,
+) -> InvestigationResult:
     """Screenshot input: one transcription call (budget 5 instead of 4), then investigate the transcription."""
     client = client or LLMClient(max_calls=MAX_MODEL_CALLS_IMAGE)
+    progress = progress or NoProgress("image")
+    progress.start("read")
     text = transcribe(data_url, client)
+    progress.done("read")
     origin = Origin(source_type="screenshot", transcription=text)
-    return run_investigation(text, client, scraper, origin)
+    return run_investigation(text, client, scraper, origin, progress)
 
 
 def run_investigation(
@@ -95,28 +112,38 @@ def run_investigation(
     client: LLMClient | None = None,
     scraper: Scraper | None = None,
     origin: Origin | None = None,
+    progress: Progress | None = None,
 ) -> InvestigationResult:
     client = client or LLMClient()
     scraper = scraper or Scraper()
     origin = origin or Origin()
+    progress = progress or NoProgress()
+    if origin.source_type == "pasted_text":
+        progress.done("read")
+
+    progress.start("extract")
     extraction = extract(text, client)
+    progress.done("extract", f"{extraction.company or 'No company named'} · {extraction.role or 'no role named'}")
+    stages = [
+        FunnelStage(stage=s.stage, label=STAGE_LABELS[s.stage], excerpt=s.excerpt)
+        for s in extraction.funnel_stages
+    ]
+    funnel = Funnel(detected=len(stages), total=len(FUNNEL_ORDER), stages=stages)
+    progress.done("funnel", f"{funnel.detected} of {funnel.total} stages")
 
     ledger = Ledger()
     payment_requested = record_pasted_facts(ledger, extraction, origin)
 
-    official = check_official_sources(extraction, client, scraper, ledger)
+    official = check_official_sources(extraction, client, scraper, ledger, progress)
+    progress.skip("challenge", "Not built yet")
+    progress.start("decide")
     result = decide(
         payment_requested=payment_requested,
         opportunity=official.status,
         direct_contradiction_on_payment_or_identity=official.policy_contradiction,
     )
     top = top_evidence(ledger.records, result.decision)
-
-    stages = [
-        FunnelStage(stage=s.stage, label=STAGE_LABELS[s.stage], excerpt=s.excerpt)
-        for s in extraction.funnel_stages
-    ]
-    funnel = Funnel(detected=len(stages), total=len(FUNNEL_ORDER), stages=stages)
+    progress.done("decide", f"{result.decision} · {result.severity}")
 
     return InvestigationResult(
         decision=result.decision,
@@ -147,14 +174,20 @@ def check_official_sources(
     client: LLMClient,
     scraper: Scraper,
     ledger: Ledger,
+    progress: Progress | None = None,
 ) -> OfficialOutcome:
     """Calls 2 and 3 plus the fetches between them. Every outcome lands in the ledger."""
+    progress = progress or NoProgress()
     claim = opportunity_claim(extraction)
 
     def opportunity(status: Status, observation: str, **source) -> OfficialOutcome:
         ledger.add(claim_id="opportunity", claim=claim, observation=observation, status=status, **source)
+        for key in ("domain", "official_pages"):
+            if not any(s.key == key and s.state in ("done", "skipped") for s in progress.snapshot()):
+                progress.skip(key, observation)
         return OfficialOutcome(status=status)
 
+    progress.start("domain")
     if not extraction.company:
         return opportunity(
             "unknown",
@@ -178,6 +211,8 @@ def check_official_sources(
         observation=domain.reason + " " + "; ".join(f"{'✓' if s.passed else '✗'} {s.name}" for s in domain.signals),
         status="verified" if domain.established else "unknown",
     )
+    if domain.established:
+        progress.done("domain", domain.domain)
     if not domain.established or domain.homepage is None:
         return opportunity(
             "unknown",
@@ -186,6 +221,7 @@ def check_official_sources(
             reliability="unknown",
         )
 
+    progress.start("official_pages")
     careers: list[FetchResult] = []
     for url in career_links(domain.homepage, domain.domain or ""):
         try:
@@ -218,6 +254,7 @@ def check_official_sources(
         contradicts_claim=role_conflict is not None,
     )
     status = opportunity_status(check)
+    progress.done("official_pages", f"{len(readable)} page{'s' if len(readable) != 1 else ''} read · {status}")
     evidence = role_conflict or role_match
     page = by_id[evidence.page_id] if evidence else readable[0]
     observation = {

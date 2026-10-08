@@ -319,3 +319,83 @@ button.link {
   border: 1px solid var(--border);
   border-radius: 4px;
 }
+
+/* Progress view: the only place motion appears (spec.md > Look and Feel). */
+.progress {
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.progress-title {
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.steps {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.step-mark {
+  font-family: var(--font-mono);
+}
+
+.step-active,
+.step-done {
+  color: var(--foreground);
+}
+
+.step-active .step-mark {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.step-note {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--foreground);
+  opacity: 0.25;
+  animation: scan 2.4s ease-in-out infinite;
+}
+
+@keyframes scan {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(260px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan,
+  .step-active .step-mark {
+    animation: none;
+  }
+  .scan {
+    display: none;
+  }
+}

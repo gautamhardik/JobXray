@@ -12,7 +12,7 @@ from app.input.image import validate_image
 from app.investigation.extract import Extraction, ExtractedClaim, ExtractedStage
 from app.investigation.pipeline import run_from_image, run_investigation
 from app.llm.llm_client import LLMClient
-from app.main import app
+from app.main import app, jobs
 from tests.helpers import ScriptedClient, saved_scraper
 
 FEE_TEXT = (Path(__file__).parent / "fixtures" / "fee_conversation.txt").read_text(encoding="utf-8")
@@ -82,7 +82,7 @@ def test_image_budget_is_five_and_text_budget_is_four(monkeypatch):
     seen = {}
     real_run = run_investigation
 
-    def spy(text, client=None, scraper=None, origin=None):
+    def spy(text, client=None, scraper=None, origin=None, progress=None):
         seen["max_calls"] = client.max_calls
         raise InputUnreadable("stop here")
 
@@ -99,6 +99,11 @@ def test_api_accepts_exactly_one_of_text_url_image():
     client = TestClient(app)
     response = client.post("/api/investigations", json={"text": "hi", "image": data_url()})
     assert response.status_code == 422
-    response = client.post("/api/investigations", json={"image": "data:text/plain;base64,aGVsbG8="})
-    assert response.status_code == 422
-    assert "PNG, JPEG, or WebP" in response.json()["detail"]
+    jobs.run_inline = True
+    try:
+        started = client.post("/api/investigations", json={"image": "data:text/plain;base64,aGVsbG8="})
+        status = client.get(f"/api/investigations/{started.json()['id']}").json()
+    finally:
+        jobs.run_inline = False
+    assert status["status"] == "failed"
+    assert "PNG, JPEG, or WebP" in status["error"]

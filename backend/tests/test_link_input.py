@@ -7,7 +7,7 @@ from app.input import InputUnreadable
 from app.input.link import read_link
 from app.investigation.extract import Extraction, ExtractedClaim, ExtractedStage
 from app.investigation.pipeline import run_from_link
-from app.main import app
+from app.main import app, jobs
 from app.web.scraper import Scraper, is_public_url
 from tests.helpers import ScriptedClient, saved_scraper
 
@@ -83,7 +83,12 @@ def test_api_requires_exactly_one_input():
     assert client.post("/api/investigations", json={"text": "a", "url": POSTING}).status_code == 422
 
 
-def test_api_turns_a_private_link_into_a_plain_422():
-    response = TestClient(app).post("/api/investigations", json={"url": "http://127.0.0.1:8000/"})
-    assert response.status_code == 422
-    assert "private or internal" in response.json()["detail"]
+def test_api_reports_a_private_link_as_a_plain_failure(monkeypatch):
+    monkeypatch.setattr(jobs, "run_inline", True)
+    client = TestClient(app)
+    started = client.post("/api/investigations", json={"url": "http://127.0.0.1:8000/"})
+    assert started.status_code == 202
+    status = client.get(f"/api/investigations/{started.json()['id']}").json()
+    assert status["status"] == "failed"
+    assert "private or internal" in status["error"]
+    assert status["result"] is None

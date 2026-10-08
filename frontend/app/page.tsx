@@ -5,6 +5,7 @@
 import { useState } from "react";
 
 import PasteBox, { asLink } from "@/components/PasteBox";
+import ProgressChecklist from "@/components/ProgressChecklist";
 import ResultView from "@/components/ResultView";
 import { startInvestigation, type InvestigationResult } from "@/lib/api";
 
@@ -14,13 +15,14 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<InvestigationResult | null>(null);
+  const [runningId, setRunningId] = useState<string | null>(null);
 
   async function investigate() {
     setBusy(true);
     setError(null);
     try {
       const link = asLink(text);
-      setResult(await startInvestigation(image ? { image } : link ? { url: link } : { text }));
+      setRunningId(await startInvestigation(image ? { image } : link ? { url: link } : { text }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -35,7 +37,19 @@ export default function Home() {
         <div className="tagline">X-ray the job before you apply.</div>
       </header>
 
-      {result ? (
+      {runningId ? (
+        <ProgressChecklist
+          id={runningId}
+          onDone={(done) => {
+            setRunningId(null);
+            setResult(done);
+          }}
+          onFailed={(message) => {
+            setRunningId(null);
+            setError(message);
+          }}
+        />
+      ) : result ? (
         <ResultView
           result={result}
           onReset={() => {

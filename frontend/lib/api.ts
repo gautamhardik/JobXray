@@ -53,7 +53,24 @@ export type InvestigationResult = {
   source: Origin;
 };
 
-export async function startInvestigation(input: InvestigationInput): Promise<InvestigationResult> {
+export type Step = {
+  key: string;
+  label: string;
+  state: "pending" | "active" | "done" | "skipped";
+  note: string | null;
+};
+
+export type InvestigationStatus = {
+  id: string;
+  status: "running" | "done" | "failed";
+  steps: Step[];
+  result: InvestigationResult | null;
+  error: string | null;
+};
+
+const UNREACHABLE = "JobXray could not reach its investigation server. Check that it is running.";
+
+export async function startInvestigation(input: InvestigationInput): Promise<string> {
   let response: Response;
   try {
     response = await fetch(`${API_URL}/api/investigations`, {
@@ -62,9 +79,21 @@ export async function startInvestigation(input: InvestigationInput): Promise<Inv
       body: JSON.stringify(input),
     });
   } catch {
-    throw new Error("JobXray could not reach its investigation server. Check that it is running.");
+    throw new Error(UNREACHABLE);
   }
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()).id;
+}
 
+export async function getInvestigation(id: string): Promise<InvestigationStatus> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/investigations/${encodeURIComponent(id)}`);
+  } catch {
+    throw new Error(UNREACHABLE);
+  }
   if (!response.ok) {
     throw new Error(await readError(response));
   }
