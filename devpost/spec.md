@@ -102,7 +102,7 @@ PRD ref: `prd.md > Look and Feel`. Confirmed by the learner in their own words: 
 **`app/page.tsx` — Investigation workspace.** Holds the view state: `input`, `running`, `result`. Renders the paste screen, the progress view, or the result view in the same page.
 PRD ref: `prd.md > Screens and Layout`, `prd.md > Core Journey`.
 
-**`components/PasteBox.tsx`.** The text area and the "Investigate" button. The button is disabled until there is non-whitespace text; a character counter shows against the 10,000-character limit.
+**`components/PasteBox.tsx`.** The text area and the "Investigate" button. The button is disabled until there is non-whitespace text or an image; a character counter shows against the 10,000-character limit. A box that contains only a link is sent as `url`. A screenshot pasted or dropped into the box is shown as a small preview with a remove control and sent as `image` (base64 data URL).
 PRD ref: `prd.md > Investigating an opportunity` (paste behavior), `prd.md > States and Boundaries > First use`.
 
 **`components/ProgressChecklist.tsx`.** Polls the backend every 1.5 seconds while running. Shows each investigation step as pending, active, or done.
@@ -118,9 +118,9 @@ PRD ref: `prd.md > Evidence`.
 
 ### Backend
 
-**`app/main.py` — HTTP routes.** `POST /api/investigations` (start), `GET /api/investigations/{id}` (status and result). CORS allows the frontend origin.
+**`app/main.py` — HTTP routes.** `POST /api/investigations` (start; body has exactly one of `text`, `url`, or `image`), `GET /api/investigations/{id}` (status and result). CORS allows the frontend origin.
 
-**`app/config.py` — limits and settings.** The numbers, in one place: `MAX_INPUT_CHARS = 10_000`, `MAX_FETCHES = 8`, `MAX_MODEL_CALLS = 4`, `CHALLENGE_ROUNDS = 1`. Reads `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` from the environment.
+**`app/config.py` — limits and settings.** The numbers, in one place: `MAX_INPUT_CHARS = 10_000`, `MAX_FETCHES = 8`, `MAX_MODEL_CALLS = 4`, `MAX_MODEL_CALLS_IMAGE = 5`, `MAX_IMAGE_BYTES = 4 MB`, `CHALLENGE_ROUNDS = 1`. Also reads `VISION_MODEL` (default `google/gemma-4-31b-it:free`). Reads `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` from the environment.
 
 **`app/investigation/pipeline.py` — the investigation sequence.** Runs steps 1–7 from "How This Works." Owns the step-status list the frontend polls. Enforces the fetch and model-call budgets: a request that would exceed a budget is refused and recorded as Unknown, not silently skipped.
 PRD refs: `prd.md > Investigating an opportunity`, `prd.md > Self-challenge`.
@@ -147,6 +147,12 @@ PRD refs: `prd.md > Evidence`, `prd.md > Result and recommendation`, `prd.md > P
 PRD ref: `prd.md > Investigating an opportunity` (official web presence).
 
 **`app/llm/llm_client.py` — model wrapper.** The only place that calls the model, through OpenRouter. Counts model calls against the budget, requests JSON matching a Pydantic schema (strict mode), validates the reply, and turns failures (bad key, no credit, free-tier rate limit, timeout, malformed reply) into plain messages. Never guesses a result from a malformed reply.
+
+**`app/input/link.py` — link input.** When the request carries a URL instead of text, fetches that page through `scraper.py` (counts against `MAX_FETCHES`) and returns its readable text, capped at `MAX_INPUT_CHARS`. Only `http` and `https`; refuses hosts that resolve to private, loopback, or link-local addresses, so a deployed server can't be pointed at internal services. A login wall, block, or empty page raises a plain "couldn't read this page — paste the text instead" error. The page is recorded as a user-provided source.
+PRD ref: `prd.md > Investigating an opportunity` (link input).
+
+**`app/input/image.py` — screenshot input.** Sends the screenshot (PNG, JPEG, or WebP, at most 4 MB) to the vision model through `llm_client.py` as one plain-text transcription call (counts against the budget, which is 5 for image investigations). The prompt asks for an exact transcription only. An empty or refused transcription raises a plain error. The transcription is returned to the frontend and used as the text for extraction; excerpts are checked against it.
+PRD ref: `prd.md > Investigating an opportunity` (screenshot input).
 
 **`app/samples/cached_case.json` — demo fallback.** One complete investigation of the sample recruiter conversation, saved from a real run, with every evidence record labeled `cached`. Used only when the person chooses "Try an example" or when the live check fails during the demo. Never shown as live.
 PRD ref: `prd.md > States and Boundaries > Cached demo`.
@@ -194,6 +200,9 @@ JobXray/
     │   ├── evidence/
     │   │   ├── ledger.py       # evidence record model
     │   │   └── status.py       # status and decision rules (no model)
+    │   ├── input/
+    │   │   ├── link.py         # fetch a user-provided link (SSRF guard)
+    │   │   └── image.py        # transcribe a screenshot with the vision model
     │   ├── web/
     │   │   └── scraper.py      # Scrapling wrapper
     │   ├── llm/

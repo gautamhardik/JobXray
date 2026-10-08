@@ -12,7 +12,7 @@ Source: `scope.md > The Unique Kernel`, `scope.md > The Core Loop`, `scope.md > 
 ## The Core Journey
 
 1. The user opens JobXray. They see the JobXray name, one paste box, and one "Investigate" button. Nothing else is on the first screen.
-2. The user pastes the recruiter messages, job details, or conversation they received into the box.
+2. The user puts what they received into the box: pasted messages or job details, a link to the job posting, or a screenshot (pasted or dropped into the same box).
 3. The user clicks "Investigate." The screen changes into a live investigation view. It shows the steps JobXray is taking and which ones are done.
 4. JobXray finishes and shows a single result. The top of the result says what the user should do: Proceed, Verify First, or Stop. Directly below that are the 2–3 strongest pieces of evidence behind the decision.
 5. Underneath, the user can inspect the detail: the facts, the official-source checks, the self-challenge, and the reasoning.
@@ -41,7 +41,10 @@ Carried from `scope.md > Inspiration & Identity`. The learner has not yet confir
 
 ### Investigating an opportunity
 
-- The user pastes any amount of text. A full conversation is accepted, not just one message.
+- The user pastes any amount of text (up to 10,000 characters). A full conversation is accepted, not just one message.
+- **Link input:** if the box contains only a link, JobXray fetches that page and investigates its text. The link's site is recorded as the source (user-provided), never treated as the company's official site by itself. Pages behind a login (LinkedIn, WhatsApp, Instagram) or blocked pages produce a plain message: "JobXray couldn't read this page. Paste the text instead."
+- **Screenshot input:** a screenshot pasted or dropped into the box is transcribed by a vision model. The person sees the transcription, and the investigation runs on it; excerpts are checked against the transcription. An unreadable image produces a plain message, never a guess.
+- **Model-call budget:** 4 calls for text and link investigations; 5 when the input is a screenshot (one extra call for the transcription).
 - Before any official-web check, JobXray identifies the company and establishes its legitimate official domain. A domain supplied in the job material (for example `xyz-careers-example.com`) cannot establish legitimacy, so it is never treated as the official source.
 - JobXray identifies the company and the role from the pasted text. If either is missing, it says so and shows it as unknown.
 - JobXray reads the pasted text as a sequence and reports which recruitment-funnel stages appear: opportunity, recruiter contact, move from private chat to a group, group orientation or call, training pitch, payment request. It reports the count (for example, "5 of 6 recruitment-funnel stages detected") and shows the relevant excerpt from the submitted text for each stage, not large portions of the conversation.
@@ -79,7 +82,7 @@ Carried from `scope.md > Inspiration & Identity`. The learner has not yet confir
 - **Official site unreachable** — The result says the official source could not be reached. That check is marked Unknown or Unverified. A failed fetch is not a risk signal. The decision is based only on evidence actually obtained. If the missing verification matters, the default decision is **Verify First**, with the note: "We could not independently verify the opportunity because the official site was unreachable."
 - **Nothing found on official pages** — Marked Unverified, not fraud. The decision depends on the other signals.
 - **Unestablished official domain** — If no legitimate official domain can be established, the official-source check is marked Unknown, and the decision defaults to Verify First, with the note that the official source could not be established.
-- **Input cannot be read** — (Assumption) The result says what could not be read and does not guess.
+- **Input cannot be read** — A link that cannot be fetched, or a screenshot that cannot be transcribed, shows a plain message saying what could not be read and suggests pasting the text. Nothing is guessed.
 - **Cached demo** — If live checks fail during a demo, JobXray may show a stored sample investigation. It is labeled as Cached everywhere it appears. It is never presented as live.
 - **Persistence** — Nothing is saved. The investigation lives in the session. Closing or refreshing the page starts over. No account, no history.
 
@@ -95,11 +98,12 @@ Carried from `scope.md > Inspiration & Identity`. The learner has not yet confir
 - Severity is shown qualitatively under the decision (for example "STOP · Critical concern"), with no percentages or scam scores — learner's choice.
 - The official domain is established before any official-source check; a domain supplied in the job material cannot establish legitimacy — learner's choice.
 - Excerpts, not large quotes, from the submitted conversation — learner's choice.
+- Link and screenshot input added during the build, through the same paste box; the budget rises to 5 model calls for screenshots — learner's choice, to cover how scam offers actually arrive (posting links and screenshots).
 - JobXray never manufactures certainty from missing evidence — learner's choice, a core product principle.
 
 ## What We're Building
 
-- Paste-only input (text of recruiter messages, job details, or a conversation).
+- Input as pasted text, a link to a job posting, or a screenshot, all through the one paste box.
 - The first screen as described above.
 - Live investigation view with checklist-style progress.
 - Company and role extraction, with unknowns shown.
@@ -114,16 +118,13 @@ Carried from `scope.md > Inspiration & Identity`. The learner has not yet confir
 
 ## Deferred From the POC
 
-- Screenshot and image input — needs OCR and handling of bad images.
-- Job URL input and direct page scraping by the user — the agent finds pages itself.
-- LinkedIn input or automation — LinkedIn blocks automated access; not a dependency.
+- LinkedIn input or automation behind a login — LinkedIn blocks automated access; not a dependency. A public LinkedIn link is tried like any link and may fail with a plain message.
 - Investigation history, saved cases, accounts — not needed to prove the idea.
 - Multiple job boards and social-media sources — fragile in a live demo.
 - Recruiter identity checks beyond the official web presence.
 
 ## Possible Later Enhancements
 
-- Screenshot input with OCR.
 - Export of the report as a file.
 - More official sources per company.
 

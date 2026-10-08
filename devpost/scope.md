@@ -26,7 +26,7 @@ Name: JobXray, "X-ray this opportunity": the job looks normal on the surface and
 Paste a suspicious recruiter conversation (WhatsApp group, group orientation, paid training, a ₹1,999 fee). The app shows the extracted company and role, the funnel steps it recognized, and one real live check of the company's official web presence. It reports the claimed internship could not be independently verified, shows the agent looking for evidence that could prove it wrong, and ends with a clear risk level (for example Critical Risk), the reasons, and a plain action (Proceed, Verify First, or Stop, for example "do not pay; verify directly with the company's official recruitment channel"), with the evidence viewable. If the challenge step finds something, the "before and after" revision is shown. This runs in about a minute on screen.
 
 ## The POC Boundary
-- Input: pasted recruiter and job messages (text only).
+- Input: pasted recruiter and job messages, a link to a job posting (JobXray fetches the page), or a screenshot (a vision model transcribes it). Added during the build at the learner's request.
 - Funnel detection as a sequence (opportunity, recruiter contact, private-to-group migration, group orientation or call, training pitch, payment request), reported as e.g. "5 of 6 recruitment-funnel stages detected," with the concerning stages classified separately, plus red flags (rules plus AI reasoning).
 - Company and role extraction.
 - One real web verification: try to verify the claimed opportunity against the company's official web presence, prioritizing careers/jobs pages (discovering them, not assuming one URL), fetched with Scrapling.
@@ -39,8 +39,7 @@ Paste a suspicious recruiter conversation (WhatsApp group, group orientation, pa
 - Session state in memory only.
 
 ## Later
-- Screenshot / OCR input
-- Direct URL input and LinkedIn-specific ingestion
+- LinkedIn-specific ingestion (pages behind a login)
 - Multiple job boards and other sources
 - Persistent case history
 - Recruiter identity checks

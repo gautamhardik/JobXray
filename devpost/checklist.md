@@ -49,7 +49,27 @@ Build mode: learn
   Learner check: Paste a message from a real company you know, with a role and a fee. Say whether the pages JobXray says it checked are really that company's official pages, and whether the verified or unknown label matches what you can see on the site yourself.
   Commit: `Check official company pages and record evidence`
 
-- [ ] **5. The progress checklist shows each investigation step as it happens**
+- [ ] **5. A link to a job posting is fetched and investigated like pasted text**
+  Becomes usable: Pasting only a link (for example a job board posting) makes JobXray fetch that page, pull out its readable text, and run the same extraction, rules, and official-site check on it. Pages behind a login or blocked pages show "JobXray couldn't read this page. Paste the text instead."
+  Why now: It reuses the Scrapling wrapper from slice 4, so it costs little once that exists, and it is the input the learner most wants.
+  PRD ref: `prd.md > Features and Behavior > Investigating an opportunity` (link input), `prd.md > States and Boundaries` (input cannot be read)
+  Spec ref: `spec.md > Components > Backend > app/input/link.py`, `spec.md > Components > Backend > scraper.py`, `spec.md > Components > Frontend > components/PasteBox.tsx`, `spec.md > Components > Backend > app/main.py`
+  Build: Accept `url` in `POST /api/investigations` (exactly one of text, url, image). Write `app/input/link.py`: http/https only; resolve the host and refuse private, loopback, and link-local addresses; fetch with `scraper.py` (counts against `MAX_FETCHES`); cap the text at 10,000 characters; record the page as a user-provided source. `PasteBox.tsx` sends a box containing only a link as `url`. The result shows "Read from: <link>".
+  Verify (mechanical): Tests: `http://127.0.0.1`, `http://localhost`, `http://10.0.0.5`, and `file:///` are refused before any fetch; a saved posting page fixture produces the same stages as its pasted text; a login-wall fixture produces the plain message. Live run: one real public job posting link returns a result, and one LinkedIn link returns either a result or the plain message, never a crash.
+  Learner check: Paste a link to a real job posting you found online. Say whether JobXray read the right page and found the right company, role, and stages.
+  Commit: `Investigate a job posting from its link`
+
+- [ ] **6. A screenshot is transcribed and investigated, and you can see the transcription**
+  Becomes usable: Pasting or dropping a screenshot of a WhatsApp chat or offer letter into the box shows a small preview; investigating it shows the transcription the vision model read, then the usual result built from that transcription.
+  Why now: Screenshots are how scam offers are usually shared; this slice adds them once the text path is fully proven, and it raises the model-call budget to 5 only for image investigations.
+  PRD ref: `prd.md > Features and Behavior > Investigating an opportunity` (screenshot input, model-call budget), `prd.md > States and Boundaries` (input cannot be read)
+  Spec ref: `spec.md > Components > Backend > app/input/image.py`, `spec.md > Components > Backend > app/config.py`, `spec.md > Components > Backend > llm_client.py`, `spec.md > Components > Frontend > components/PasteBox.tsx`
+  Build: Accept `image` (data URL; PNG, JPEG, or WebP; at most 4 MB). Write `app/input/image.py` with one plain-text transcription call to `VISION_MODEL` (default `google/gemma-4-31b-it:free`) through `llm_client.py`, using `MAX_MODEL_CALLS_IMAGE = 5`. Show the transcription in the result. Excerpts are checked against the transcription. `PasteBox.tsx` handles paste and drop of an image, with a preview and a remove control.
+  Verify (mechanical): Tests: oversized or non-image data is refused before any model call; the budget is 5 for image runs and 4 otherwise; an empty transcription gives the plain error. Live run: a generated screenshot of the fee conversation fixture produces a transcription and the payment-request stage.
+  Learner check: Take a screenshot of a recruiter message (or any job offer image) and paste it into the box. Say whether the transcription matches the image and whether the result makes sense.
+  Commit: `Investigate a screenshot through a visible transcription`
+
+- [ ] **7. The progress checklist shows each investigation step as it happens**
   Becomes usable: While an investigation runs, the screen shows the steps as a checklist (analyzing, identifying company and role, checking the recruitment sequence, establishing the official domain, checking official pages), with each step checked off as it finishes.
   Why now: Real web checks take seconds, and an empty screen during that time makes the app look broken. This is also the first place the investigation becomes visibly "work in progress."
   PRD ref: `prd.md > Screens and Layout` (investigation view), `prd.md > Features and Behavior > Investigating an opportunity`
@@ -59,7 +79,7 @@ Build mode: learn
   Learner check: Start an investigation and watch the checklist. Say whether each step name matches what you expected JobXray to be doing at that moment.
   Commit: `Show live investigation progress`
 
-- [ ] **6. The agent challenges its first verdict, and a changed verdict is shown on the main answer**
+- [ ] **8. The agent challenges its first verdict, and a changed verdict is shown on the main answer**
   Becomes usable: After the first assessment, JobXray writes specific counter-hypotheses, runs a targeted check, and re-applies the rules. If the result changes, the main answer shows the new decision with the note "Assessment changed after contradictory evidence was found." If it does not, the result says "No credible contradictory evidence found."
   Why now: Self-challenge is the feature the product's identity rests on. It needs the web check and the rules already working, so that a changed verdict is grounded in real evidence.
   PRD ref: `prd.md > Features and Behavior > Self-challenge`, `prd.md > Features and Behavior > Result and recommendation` (revision note)
@@ -69,7 +89,7 @@ Build mode: learn
   Learner check: Run an investigation where the first result is cautious, and read the self-challenge section. Say whether the counter-hypotheses are the ones you would have asked yourself, and whether the final decision explains any change.
   Commit: `Challenge the first verdict and revise when evidence changes`
 
-- [ ] **7. The example investigation works without the internet, and failures show plain messages**
+- [ ] **9. The example investigation works without the internet, and failures show plain messages**
   Becomes usable: A "Try an example" option loads a saved investigation, clearly labeled Cached. When the model or the web fails, the person sees a plain message, never a guessed result.
   Why now: The demo recording and any judge's first click depend on this. It comes after the features it protects, so the saved case is a real run.
   PRD ref: `prd.md > States and Boundaries` (first use, cached demo, persistence, official site unreachable, input cannot be read), `prd.md > Screens and Layout` (example option)
@@ -79,7 +99,7 @@ Build mode: learn
   Learner check: Turn off your internet, open the app, and load the example. Say whether the result still makes sense, and whether it is clearly labeled as an example.
   Commit: `Add cached example and plain failure messages`
 
-- [ ] **8. The app matches the approved look and feel, on a phone-width screen too**
+- [ ] **10. The app matches the approved look and feel, on a phone-width screen too**
   Becomes usable: The whole flow reads as calm, serious, and evidence-first, with no dashboard cards or flashing effects, and it works at phone width without horizontal scrolling.
   Why now: Visual polish comes last so it styles the real screens, not placeholders, and so judging of the look is done against the actual product.
   PRD ref: `prd.md > Look and Feel`, `prd.md > Screens and Layout`
@@ -91,10 +111,10 @@ Build mode: learn
 
 ## Hands-on Checkpoints
 
-<!-- Early feedback at the boundary after slice 3, when the kernel decision works end to end. Final kick-the-tires after slice 8. -->
+<!-- Early feedback at the boundary after slice 3, when the kernel decision works end to end. Final kick-the-tires after slice 10. -->
 
 - [ ] Early usable behavior explored: after slice 3 (paste a fee message, paste a no-fee message, judge the decisions and evidence)
-- [ ] Final kick-the-tires exploration and feedback completed
+- [ ] Final kick-the-tires exploration and feedback completed (after slice 10)
 
 ## Final Review
 
@@ -117,6 +137,8 @@ Reflection:
 Activity mode:
 
 ## Revisions
+
+- Link and screenshot input added as slices 5 and 6, after the official-site check (later slices renumbered 7–10); the model-call budget is 5 for screenshot investigations — the learner asked for every input type, especially links, during slice 2. Scope, PRD, and spec updated to match.
 
 - Slice 2 learner check performed by the agent at the learner's request: 7 composite messages based on FTC and CyberPeace scam patterns (plus a legitimate posting and a prompt-injection attempt) in `backend/tests/fixtures/realworld/`, expected stages written before running; 7/7 matched on the live free model. Generous stage calls noted ("training kit link" counted as a training pitch).
 
