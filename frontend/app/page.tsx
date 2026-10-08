@@ -7,6 +7,7 @@ import { useState } from "react";
 import PasteBox, { asLink } from "@/components/PasteBox";
 import ProgressChecklist from "@/components/ProgressChecklist";
 import ResultView from "@/components/ResultView";
+import ScrambleText from "@/components/ScrambleText";
 import XrayBackdrop from "@/components/XrayBackdrop";
 import {
   getExample,
@@ -61,7 +62,10 @@ export default function Home() {
             Job<span className="brand-x">X</span>ray
           </div>
           {phase === "input" ? (
-            <h1 className="hero">X-ray the job before you apply.</h1>
+            <h1 className="hero reveal">
+              <ScrambleText text="X-ray" className="hero-x" /> the job before
+              you apply.
+            </h1>
           ) : (
             <div className="tagline">X-ray the job before you apply.</div>
           )}
@@ -99,7 +103,7 @@ export default function Home() {
               busy={busy}
             />
             {error && <p className="message">{error}</p>}
-            <p className="example-line">
+            <p className="example-line reveal reveal-3">
               Not sure what to paste?{" "}
               <button type="button" className="link" onClick={showExample}>
                 Try an example

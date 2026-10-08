@@ -24,10 +24,18 @@ type Props = {
   busy: boolean;
 };
 
-export default function PasteBox({ value, onChange, image, onImage, onSubmit, busy }: Props) {
+export default function PasteBox({
+  value,
+  onChange,
+  image,
+  onImage,
+  onSubmit,
+  busy,
+}: Props) {
   const [imageError, setImageError] = useState<string | null>(null);
   const over = value.length > MAX_INPUT_CHARS;
-  const canSubmit = (image !== null || (value.trim().length > 0 && !over)) && !busy;
+  const canSubmit =
+    (image !== null || (value.trim().length > 0 && !over)) && !busy;
 
   function takeFile(file: File | undefined | null): boolean {
     if (!file || !file.type.startsWith("image/")) return false;
@@ -36,7 +44,9 @@ export default function PasteBox({ value, onChange, image, onImage, onSubmit, bu
       return true;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setImageError("That screenshot is larger than 4 MB. Crop it or take a smaller one.");
+      setImageError(
+        "That screenshot is larger than 4 MB. Crop it or take a smaller one.",
+      );
       return true;
     }
     const reader = new FileReader();
@@ -50,13 +60,15 @@ export default function PasteBox({ value, onChange, image, onImage, onSubmit, bu
 
   return (
     <form
+      className="reveal reveal-2"
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) onSubmit();
       }}
     >
       <label htmlFor="messages" className="tagline">
-        Paste the recruiter or job messages you received, a link to the job posting, or a screenshot.
+        Paste the recruiter or job messages you received, a link to the job
+        posting, or a screenshot.
       </label>
 
       {image ? (
@@ -68,21 +80,24 @@ export default function PasteBox({ value, onChange, image, onImage, onSubmit, bu
           </button>
         </div>
       ) : (
-        <textarea
-          id="messages"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onPaste={(event) => {
-            const file = Array.from(event.clipboardData.files)[0];
-            if (takeFile(file)) event.preventDefault();
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => {
-            const file = event.dataTransfer.files[0];
-            if (takeFile(file)) event.preventDefault();
-          }}
-          placeholder="Paste the recruiter or job messages, a job posting link, or a screenshot here…"
-        />
+        <div className={value.trim() ? "input-frame has-text" : "input-frame"}>
+          <span className="input-scan" aria-hidden="true" />
+          <textarea
+            id="messages"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            onPaste={(event) => {
+              const file = Array.from(event.clipboardData.files)[0];
+              if (takeFile(file)) event.preventDefault();
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              const file = event.dataTransfer.files[0];
+              if (takeFile(file)) event.preventDefault();
+            }}
+            placeholder="Paste the recruiter or job messages, a job posting link, or a screenshot here…"
+          />
+        </div>
       )}
 
       <div className="paste-footer">
