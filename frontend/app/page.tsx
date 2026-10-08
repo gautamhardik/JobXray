@@ -7,7 +7,12 @@ import { useState } from "react";
 import PasteBox, { asLink } from "@/components/PasteBox";
 import ProgressChecklist from "@/components/ProgressChecklist";
 import ResultView from "@/components/ResultView";
-import { getExample, startInvestigation, type InvestigationResult } from "@/lib/api";
+import XrayBackdrop from "@/components/XrayBackdrop";
+import {
+  getExample,
+  startInvestigation,
+  type InvestigationResult,
+} from "@/lib/api";
 
 export default function Home() {
   const [text, setText] = useState("");
@@ -22,7 +27,9 @@ export default function Home() {
     try {
       setResult(await getExample());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The example could not be loaded.");
+      setError(
+        err instanceof Error ? err.message : "The example could not be loaded.",
+      );
     }
   }
 
@@ -31,7 +38,11 @@ export default function Home() {
     setError(null);
     try {
       const link = asLink(text);
-      setRunningId(await startInvestigation(image ? { image } : link ? { url: link } : { text }));
+      setRunningId(
+        await startInvestigation(
+          image ? { image } : link ? { url: link } : { text },
+        ),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -39,53 +50,64 @@ export default function Home() {
     }
   }
 
-  return (
-    <main>
-      <header>
-        <div className="brand">JobXray</div>
-        <div className="tagline">X-ray the job before you apply.</div>
-      </header>
+  const phase = runningId ? "running" : result ? "result" : "input";
 
-      {runningId ? (
-        <ProgressChecklist
-          id={runningId}
-          onDone={(done) => {
-            setRunningId(null);
-            setResult(done);
-          }}
-          onFailed={(message) => {
-            setRunningId(null);
-            setError(message);
-          }}
-        />
-      ) : result ? (
-        <ResultView
-          result={result}
-          onReset={() => {
-            setResult(null);
-            setText("");
-            setImage(null);
-          }}
-        />
-      ) : (
-        <>
-          <PasteBox
-            value={text}
-            onChange={setText}
-            image={image}
-            onImage={setImage}
-            onSubmit={investigate}
-            busy={busy}
+  return (
+    <>
+      <XrayBackdrop phase={phase} />
+      <main className={`phase-${phase}`}>
+        <header>
+          <div className="brand">
+            Job<span className="brand-x">X</span>ray
+          </div>
+          {phase === "input" ? (
+            <h1 className="hero">X-ray the job before you apply.</h1>
+          ) : (
+            <div className="tagline">X-ray the job before you apply.</div>
+          )}
+        </header>
+
+        {runningId ? (
+          <ProgressChecklist
+            id={runningId}
+            onDone={(done) => {
+              setRunningId(null);
+              setResult(done);
+            }}
+            onFailed={(message) => {
+              setRunningId(null);
+              setError(message);
+            }}
           />
-          {error && <p className="message">{error}</p>}
-          <p className="example-line">
-            Not sure what to paste?{" "}
-            <button type="button" className="link" onClick={showExample}>
-              Try an example
-            </button>
-          </p>
-        </>
-      )}
-    </main>
+        ) : result ? (
+          <ResultView
+            result={result}
+            onReset={() => {
+              setResult(null);
+              setText("");
+              setImage(null);
+            }}
+          />
+        ) : (
+          <>
+            <PasteBox
+              value={text}
+              onChange={setText}
+              image={image}
+              onImage={setImage}
+              onSubmit={investigate}
+              busy={busy}
+            />
+            {error && <p className="message">{error}</p>}
+            <p className="example-line">
+              Not sure what to paste?{" "}
+              <button type="button" className="link" onClick={showExample}>
+                Try an example
+              </button>
+            </p>
+          </>
+        )}
+      </main>
+    </>
   );
 }

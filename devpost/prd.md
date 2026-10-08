@@ -28,14 +28,15 @@ Moving between views is one-way for a single investigation. A new investigation 
 
 ## Look and Feel
 
-Carried from `scope.md > Inspiration & Identity`. The learner has not yet confirmed these details in their own words; they are listed here so the spec and build have a starting point. Confirm at review.
+Revised during the build at the learner's request ("there is still no design", "threeui.com", "use the best suitable design"). Replaces the earlier calm light direction.
 
-- Calm, serious, investigative. Not a police or scam-alert dashboard; not a generic AI chat app.
-- Warm neutral background, strong typography, generous whitespace, thin borders.
-- No neon, no gradients, no large percentage gauge, no flashy AI effects.
-- Motion only during an active investigation, and only to express the X-ray metaphor: a subtle scan effect when the investigation starts and scan or progress motion tied to the investigation steps. No 3D scene, shader background, or persistent animation. The result and evidence views stay calm and static. (Learner choice during build, "Option 2 — Mix".)
-- Color is used only for meaning: red or orange for real risk findings, green for verified facts.
-- Monospace for source and evidence details.
+- Dark X-ray film: near-black canvas, cool cyan-white light as the one accent.
+- A ThreeUI Community laser beam (free, MIT) runs behind the page like an X-ray scan line: brighter on the first screen, faster while investigating, dimmed behind the result so the evidence stays readable.
+- Large bold headline on the first screen: "X-ray the job before you apply."
+- Dark, readable panels for the paste box, the progress scanner, and the evidence. Monospace for labels, sources, and excerpts.
+- Red, amber, and green appear only for evidence meaning (Stop / Contradiction, Verify First / Unverified, Proceed / Verified).
+- No paid ThreeUI Pro content; no components that load scripts from other sites at runtime.
+- Reduced-motion users get a static backdrop.
 
 ## Features and Behavior
 

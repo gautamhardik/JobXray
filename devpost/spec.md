@@ -49,7 +49,8 @@ PRD refs: `prd.md > Features and Behavior` (all).
 - **Reasoning:** OpenRouter free models through OpenRouter's chat-completions API (plain HTTP with httpx, structured JSON output), one model for every call, chosen by the `OPENROUTER_MODEL` environment variable (default `nvidia/nemotron-3-super-120b-a12b:free`).
   Docs: **to verify** the current API docs and the exact model ID before the build. This spec does not hard-code a model ID.
 - **Tests:** pytest for backend logic (status rules, limits, quote checks).
-- **Not used:** PostgreSQL, Docker (until deployment, if needed), any ML training, any component library, any authentication.
+- **Visual effects:** `@designcodeio/threeui@1.2.0` (ThreeUI Community, MIT) for the laser backdrop only, with `three@0.165.0`. Docs: https://threeui.com/installation
+- **Not used:** PostgreSQL, Docker (until deployment, if needed), any ML training, any authentication, any paid ThreeUI Pro component.
 
 Tradeoff accepted: two services to run and deploy instead of one. The reason is that Scrapling is Python and the investigation logic belongs with it.
 
@@ -86,14 +87,13 @@ OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free
 **Optional deployment (decided in `6-ship`):** the stated preference is a public deployed URL in addition to the video and repository. The plan is two services: frontend on a Next.js host, backend on a Python host. Recording is done from the stable version, and the recording does not depend on the live deployment.
 
 ## Look and Feel
-PRD ref: `prd.md > Look and Feel`. Confirmed by the learner in their own words: "serious investigative tool, not a cybersecurity dashboard or chatbot; minimal, calm, evidence-first; risk colors only when the evidence justifies them; no gradients, gauges, or flashy animations."
+PRD ref: `prd.md > Look and Feel` (revised during the build).
 
-- **Palette (CSS variables on `:root`):** warm off-white background, near-black text, thin neutral borders. Red or orange only for real risk findings. Green only for verified facts. Dark mode not in scope.
-- **Typography:** a strong sans-serif for headings and body (system stack or one Google font), monospace for source URLs, excerpts, and timestamps.
-- **Density:** spacious and calm. Generous whitespace, one column, no dashboard cards.
-- **Motion:** restrained motion that expresses the X-ray/investigation metaphor during an active investigation only: a subtle CSS scan line when Investigate is pressed and in the progress view, tied to the investigation steps. Plain CSS keyframes; no Three.js, no threeui.com components, no shader backgrounds, no persistent animation. Result and evidence views are calm and static. Respect `prefers-reduced-motion` by turning the scan off. No neon, no gradients, no flashing effects.
-- **Interface copy:** plain, serious, reassuring. No fear-based wording.
-- **Layout must work on a phone-width screen** (single column, no horizontal scrolling).
+- **Palette (CSS variables on `:root` in `globals.css`):** near-black background `#04070a`, dark translucent panels, light text `#c4d1da`/`#eef6fb`, one accent `--xray` cyan-white `#9adbff` with a soft glow. Evidence colors: red `--risk`, amber `--caution`, green `--verified`, each with a faint tinted background.
+- **Backdrop:** `components/XrayBackdrop.tsx` renders ThreeUI Community's `LaserCollection` (`@designcodeio/threeui@1.2.0`, MIT, with `three@0.165.0`), variant `atmospheric-blade`, hue shifted to cyan, loaded client-only (`next/dynamic`, `ssr: false`) from the per-component entry `@designcodeio/threeui/components/LaserCollection` (the package root pulls in unrelated components that break the webpack build). Speed and brightness change by phase (input, running, result). A radial vignette keeps text readable. `prefers-reduced-motion` gets a static backdrop. The `matrix-field` variant was rejected: it loads Tailwind, GSAP, and icon scripts from CDNs inside an iframe, which breaks offline use.
+- **Typography:** Geist Sans (bold, tight tracking for the hero and decision), Geist Mono for labels, notes, sources, and excerpts.
+- **Motion:** the beam, the progress scan line, and the active-step pulse. The result view itself is static.
+- **Layout:** single column, 760px max, 16px side gutter, no horizontal scroll at phone width; the Investigate button spans the width on phones.
 
 ## Components
 

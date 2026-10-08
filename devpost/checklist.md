@@ -138,6 +138,8 @@ Activity mode:
 
 ## Revisions
 
+- Look and Feel replaced after slice 10: the learner said the calm light design had "no design" and asked for threeui.com and "the best suitable design". New direction: dark X-ray film with ThreeUI Community's free `LaserCollection` beam behind the page (`components/XrayBackdrop.tsx`), cyan-white accent, evidence colors kept for meaning only. Copying ThreeUI Pro source was declined (paid, no redistribution); the learner agreed to free components. Verified in the browser at desktop and 375px for the paste, progress, and result views. PRD, spec, and README updated.
+
 - Slice 10: applied the approved look with guidance from the minimalist-ui skill where it fits (Newsreader serif for the name and decision, warm monochrome tokens, muted pastel status badges: red contradiction, yellow unverified, green verified; divider accordions with +/−); skipped its gradients, ambient blobs and scroll animations because the spec allows motion only during an investigation. Fixed a slice-1 bug: font variables sat on `<body>` while the tokens on `:root` referenced them, so the body fell back to a default serif. Verified in the browser at desktop and 375px (no horizontal scroll; no gradients or shadows in the CSS).
 - Spec updated to match the build: start-then-poll API, `GET /api/example`, and the added files (`jobs.py`, `progress.py`, `quotes.py`, `input/__init__.py`, `samples/__init__.py`, `scripts/save_example.py`, `transcribe.md`).
 

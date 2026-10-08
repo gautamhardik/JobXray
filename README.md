@@ -49,4 +49,4 @@ The tests replace the model and the web with scripted doubles and saved pages, s
 
 ## Stack
 
-Next.js (frontend), FastAPI (backend), [Scrapling](https://github.com/D4Vinci/Scrapling) for fetching pages, OpenRouter free models for reasoning. No database: investigations live in memory and disappear on restart.
+Next.js (frontend), FastAPI (backend), [Scrapling](https://github.com/D4Vinci/Scrapling) for fetching pages, OpenRouter free models for reasoning. The X-ray beam behind the page is `LaserCollection` from [ThreeUI Community](https://threeui.com) (`@designcodeio/threeui`, MIT). No database: investigations live in memory and disappear on restart.
