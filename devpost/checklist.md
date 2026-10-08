@@ -99,7 +99,7 @@ Build mode: fast (switched from learn after slice 4 — the learner asked the ag
   Learner check: Turn off your internet, open the app, and load the example. Say whether the result still makes sense, and whether it is clearly labeled as an example.
   Commit: `Add cached example and plain failure messages`
 
-- [ ] **10. The app matches the approved look and feel, on a phone-width screen too**
+- [x] **10. The app matches the approved look and feel, on a phone-width screen too**
   Becomes usable: The whole flow reads as calm, serious, and evidence-first, with no dashboard cards or flashing effects, and it works at phone width without horizontal scrolling.
   Why now: Visual polish comes last so it styles the real screens, not placeholders, and so judging of the look is done against the actual product.
   PRD ref: `prd.md > Look and Feel`, `prd.md > Screens and Layout`
@@ -137,6 +137,9 @@ Reflection:
 Activity mode:
 
 ## Revisions
+
+- Slice 10: applied the approved look with guidance from the minimalist-ui skill where it fits (Newsreader serif for the name and decision, warm monochrome tokens, muted pastel status badges: red contradiction, yellow unverified, green verified; divider accordions with +/−); skipped its gradients, ambient blobs and scroll animations because the spec allows motion only during an investigation. Fixed a slice-1 bug: font variables sat on `<body>` while the tokens on `:root` referenced them, so the body fell back to a default serif. Verified in the browser at desktop and 375px (no horizontal scroll; no gradients or shadows in the CSS).
+- Spec updated to match the build: start-then-poll API, `GET /api/example`, and the added files (`jobs.py`, `progress.py`, `quotes.py`, `input/__init__.py`, `samples/__init__.py`, `scripts/save_example.py`, `transcribe.md`).
 
 - Slice 9 committed before the example itself exists: `GET /api/example`, the loader that forces every record to Cached and refuses a file without a save date, `backend/scripts/save_example.py` (runs one real investigation and saves it), the "Try an example" link, and the cached banner are built and tested (5 tests; browser shows the plain "not been saved yet" message). Saving the real example from `tests/fixtures/realworld/india_internship_upi.txt` (Infosys name, UPI fee) is due after the model cap resets.
 

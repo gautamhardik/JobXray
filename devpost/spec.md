@@ -118,7 +118,7 @@ PRD ref: `prd.md > Evidence`.
 
 ### Backend
 
-**`app/main.py` — HTTP routes.** `POST /api/investigations` (start; body has exactly one of `text`, `url`, or `image`), `GET /api/investigations/{id}` (status and result). CORS allows the frontend origin.
+**`app/main.py` — HTTP routes.** `POST /api/investigations` (start; body has exactly one of `text`, `url`, or `image`; returns 202 and an id), `GET /api/investigations/{id}` (step list, then the result or a plain error; 404 if unknown), `GET /api/example` (the saved example, always labelled Cached). CORS allows the frontend origin.
 
 **`app/config.py` — limits and settings.** The numbers, in one place: `MAX_INPUT_CHARS = 10_000`, `MAX_FETCHES = 8`, `MAX_MODEL_CALLS = 4`, `MAX_MODEL_CALLS_IMAGE = 5`, `MAX_IMAGE_BYTES = 4 MB`, `CHALLENGE_ROUNDS = 1`. Also reads `VISION_MODEL` (default `google/gemma-4-31b-it:free`). Reads `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` from the environment.
 
@@ -190,26 +190,31 @@ JobXray/
 └── backend/
     ├── app/
     │   ├── main.py             # FastAPI routes
+    │   ├── jobs.py             # in-memory investigations for start-then-poll
     │   ├── config.py           # limits and environment settings
     │   ├── investigation/
     │   │   ├── pipeline.py     # the step sequence and budgets
+    │   │   ├── progress.py     # the step list the progress view polls
     │   │   ├── extract.py      # call 1
     │   │   ├── plan.py         # call 2 and domain check
     │   │   ├── observe.py      # call 3
     │   │   └── challenge.py    # call 4
     │   ├── evidence/
     │   │   ├── ledger.py       # evidence record model
-    │   │   └── status.py       # status and decision rules (no model)
-    │   ├── input/
+    │   │   ├── status.py       # status and decision rules (no model)
+    │   │   └── quotes.py       # quote check shared by extraction and page observations
+    │   ├── input/              # __init__.py: InputUnreadable (plain-message errors)
     │   │   ├── link.py         # fetch a user-provided link (SSRF guard)
     │   │   └── image.py        # transcribe a screenshot with the vision model
     │   ├── web/
     │   │   └── scraper.py      # Scrapling wrapper
     │   ├── llm/
     │   │   └── llm_client.py
-    │   ├── prompts/            # extract.md, plan.md, observe.md, challenge.md
-    │   └── samples/
+    │   ├── prompts/            # extract.md, plan.md, observe.md, challenge.md, transcribe.md
+    │   └── samples/            # __init__.py loads the example and forces Cached labels
     │       └── cached_case.json
+    ├── scripts/
+    │   └── save_example.py     # runs one real investigation and saves the example
     ├── tests/
     │   ├── test_status_rules.py
     │   ├── test_limits.py
