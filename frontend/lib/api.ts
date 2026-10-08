@@ -27,6 +27,15 @@ export type EvidenceRecord = {
 
 export type Decision = "STOP" | "VERIFY FIRST" | "PROCEED";
 
+export type Origin = {
+  source_type: "pasted_text" | "linked_page" | "screenshot";
+  source_url: string | null;
+  reliability: string;
+  transcription: string | null;
+};
+
+export type InvestigationInput = { text: string } | { url: string } | { image: string };
+
 export type InvestigationResult = {
   decision: Decision;
   severity: string;
@@ -40,15 +49,17 @@ export type InvestigationResult = {
   top_evidence: string[];
   dropped_quotes: number;
   model_calls: number;
+  fetches: number;
+  source: Origin;
 };
 
-export async function startInvestigation(text: string): Promise<InvestigationResult> {
+export async function startInvestigation(input: InvestigationInput): Promise<InvestigationResult> {
   let response: Response;
   try {
     response = await fetch(`${API_URL}/api/investigations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify(input),
     });
   } catch {
     throw new Error("JobXray could not reach its investigation server. Check that it is running.");

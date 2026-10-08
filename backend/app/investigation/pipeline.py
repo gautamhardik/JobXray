@@ -8,10 +8,11 @@ See spec.md > Components > Backend > app/investigation/pipeline.py.
 
 from pydantic import BaseModel
 
-from app.evidence.ledger import EvidenceRecord, Ledger, Status
+from app.evidence.ledger import EvidenceRecord, Ledger, Reliability, SourceType, Status
 from app.evidence.status import OfficialCheck, decide, opportunity_status, top_evidence
 from app.investigation.extract import FUNNEL_ORDER, STAGE_LABELS, CheckedExtraction, extract
 from app.investigation.observe import inspectable, observe
+from app.input.link import read_link
 from app.investigation.plan import career_links, check_domain, propose
 from app.llm.llm_client import LLMClient
 from app.web.scraper import FetchBudgetExceeded, FetchResult, Scraper
@@ -23,6 +24,22 @@ CLAIM_LABELS = {
     "fee": "Payment requested",
     "application_link": "Application link",
     "other": "Claim",
+}
+
+
+class Origin(BaseModel):
+    """Where the investigated text came from."""
+
+    source_type: SourceType = "pasted_text"
+    source_url: str | None = None
+    reliability: Reliability = "user-provided"
+    transcription: str | None = None
+
+
+ORIGIN_OBSERVATION = {
+    "pasted_text": "Stated in the text you provided.",
+    "linked_page": "Stated on the page you linked.",
+    "screenshot": "Stated in your screenshot (as transcribed).",
 }
 
 
@@ -52,19 +69,30 @@ class InvestigationResult(BaseModel):
     dropped_quotes: int
     model_calls: int
     fetches: int
+    source: Origin
+
+
+def run_from_link(url: str, client: LLMClient | None = None, scraper: Scraper | None = None) -> InvestigationResult:
+    """Link input: read the linked page (one fetch from the same budget), then investigate its text."""
+    scraper = scraper or Scraper()
+    page = read_link(url, scraper)
+    origin = Origin(source_type="linked_page", source_url=page.url)
+    return run_investigation(page.text, client, scraper, origin)
 
 
 def run_investigation(
     text: str,
     client: LLMClient | None = None,
     scraper: Scraper | None = None,
+    origin: Origin | None = None,
 ) -> InvestigationResult:
     client = client or LLMClient()
     scraper = scraper or Scraper()
+    origin = origin or Origin()
     extraction = extract(text, client)
 
     ledger = Ledger()
-    payment_requested = record_pasted_facts(ledger, extraction)
+    payment_requested = record_pasted_facts(ledger, extraction, origin)
 
     official = check_official_sources(extraction, client, scraper, ledger)
     result = decide(
@@ -94,6 +122,7 @@ def run_investigation(
         dropped_quotes=extraction.dropped_quotes + official.dropped_quotes,
         model_calls=client.calls,
         fetches=scraper.fetches,
+        source=origin,
     )
 
 
@@ -221,7 +250,7 @@ def check_official_sources(
     return OfficialOutcome(status=status, policy_contradiction=policy_contradiction, dropped_quotes=checked.dropped_quotes)
 
 
-def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction) -> bool:
+def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction, origin: Origin) -> bool:
     """Every surviving claim becomes a Fact from the pasted text. Returns whether a payment is requested."""
     payment_requested = False
     other_count = 0
@@ -237,10 +266,11 @@ def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction) -> bool:
         ledger.add(
             claim_id=claim_id,
             claim=f"{CLAIM_LABELS[claim.kind]}: {claim.value}",
-            source_type="pasted_text",
+            source_type=origin.source_type,
+            source_url=origin.source_url,
             excerpt=claim.excerpt,
-            reliability="user-provided",
-            observation="Stated in the text you provided.",
+            reliability=origin.reliability,
+            observation=ORIGIN_OBSERVATION[origin.source_type],
             status="fact",
         )
 
@@ -252,10 +282,11 @@ def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction) -> bool:
             ledger.add(
                 claim_id="payment",
                 claim="Payment requested",
-                source_type="pasted_text",
+                source_type=origin.source_type,
+                source_url=origin.source_url,
                 excerpt=stage.excerpt,
-                reliability="user-provided",
-                observation="Stated in the text you provided.",
+                reliability=origin.reliability,
+                observation=ORIGIN_OBSERVATION[origin.source_type],
                 status="fact",
             )
     return payment_requested

@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 
-import PasteBox from "@/components/PasteBox";
+import PasteBox, { asLink } from "@/components/PasteBox";
 import ResultView from "@/components/ResultView";
 import { startInvestigation, type InvestigationResult } from "@/lib/api";
 
@@ -18,7 +18,8 @@ export default function Home() {
     setBusy(true);
     setError(null);
     try {
-      setResult(await startInvestigation(text));
+      const link = asLink(text);
+      setResult(await startInvestigation(link ? { url: link } : { text }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {

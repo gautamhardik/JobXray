@@ -5,7 +5,7 @@ status: approved
 
 # Build Checklist
 
-Build mode: learn
+Build mode: fast (switched from learn after slice 4 — the learner asked the agent to complete all remaining slices; hands-on review at the end)
 
 ## Slices
 
@@ -137,6 +137,8 @@ Reflection:
 Activity mode:
 
 ## Revisions
+
+- Slice 5 committed before its live-model run (cap exhausted). Verified: 11 link tests (private addresses refused before any request, login wall and blocked pages give the paste-instead message, linked page produces the same stages, linked facts stay user-provided, one fetch from the shared budget) and live link reading of python.org/jobs and an Internshala listing (read) plus LinkedIn and Naukri (plain paste-instead message).
 
 - Slice 4 code committed before its live-model verification, at the learner's direction, because the free-model daily cap was exhausted; the box stays unchecked until the live run after the reset. Already verified: 48 tests (fixtures for verified, unverified, blocked, JavaScript-only, look-alike, name-only, no-fee-policy contradiction, budget), and the live domain check plus careers discovery on infosys.com, tcs.com, wipro.com, microsoft.com and python.org (all established, all careers pages readable).
 - Careers discovery prefers strong words (careers, jobs, join us, hiring) and only falls back to weaker ones; URLs are normalized and identical pages read once — the live check picked Microsoft's "Students and educators" page and fetched Infosys' careers page twice.

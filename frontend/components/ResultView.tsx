@@ -28,6 +28,14 @@ export default function ResultView({ result, onReset }: Props) {
         <div className="decision">{result.decision}</div>
         <div className="severity">{result.severity}</div>
         <p className="next-step">{result.next_step}</p>
+        {result.source.source_type === "linked_page" && result.source.source_url && (
+          <p className="muted small">
+            Read from:{" "}
+            <a href={result.source.source_url} target="_blank" rel="noreferrer noopener">
+              {result.source.source_url}
+            </a>
+          </p>
+        )}
       </div>
 
       <h2 className="section-title">Why</h2>
