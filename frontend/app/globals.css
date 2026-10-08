@@ -1,0 +1,144 @@
+/* Palette and typography: spec.md > Look and Feel.
+   Calm, serious, evidence-first. Color only where evidence justifies it. */
+:root {
+  --background: #f7f4ee;
+  --surface: #fcfaf6;
+  --foreground: #1b1a17;
+  --muted: #6b665c;
+  --border: #d9d3c7;
+  --risk: #b4432a;
+  --caution: #b8741a;
+  --verified: #2f6b3f;
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 16px 64px;
+}
+
+header {
+  margin-bottom: 40px;
+}
+
+.brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+textarea {
+  width: 100%;
+  min-height: 240px;
+  padding: 16px;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+}
+
+textarea:focus,
+button:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.paste-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.counter {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.counter.over {
+  color: var(--risk);
+}
+
+button.primary {
+  padding: 12px 20px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--background);
+  background: var(--foreground);
+  border: 1px solid var(--foreground);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button.primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button.link {
+  font: inherit;
+  color: var(--muted);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.message {
+  margin-top: 16px;
+  color: var(--risk);
+}
+
+.result {
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.decision {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.severity {
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.result-actions {
+  margin-top: 24px;
+}
