@@ -84,7 +84,7 @@ def test_role_listed_on_official_careers_page_is_verified_and_proceed_without_fe
     assert record.source_url == CAREERS
     assert record.reliability == "official"
     assert result.decision == "PROCEED"
-    assert client.calls == 3
+    assert client.calls == 4  # extract, domain, observe, self-challenge
 
 
 def test_inspected_careers_page_without_the_role_is_unverified_and_fee_means_stop():
@@ -99,7 +99,7 @@ def test_blocked_careers_page_is_unknown_not_unverified():
     result = run_investigation(FEE_TEXT, client, saved_scraper({HOME: "nexora_home.html", CAREERS: 403}))
     assert _record(result, "opportunity").status == "unknown"
     assert result.decision == "VERIFY FIRST"
-    assert client.calls == 2  # no page to observe, so no call 3
+    assert client.calls == 3  # extract, domain, self-challenge: no page to observe, so no observe call
 
 
 def test_javascript_only_careers_page_is_unknown():

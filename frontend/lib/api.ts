@@ -34,6 +34,20 @@ export type Origin = {
   transcription: string | null;
 };
 
+export type CheckedHypothesis = {
+  question: string;
+  kind: string;
+  checked_urls: string[];
+  finding: string;
+};
+
+export type Challenge = {
+  hypotheses: CheckedHypothesis[];
+  changed: boolean;
+  first_decision: string;
+  note: string;
+};
+
 export type InvestigationInput = { text: string } | { url: string } | { image: string };
 
 export type InvestigationResult = {
@@ -51,6 +65,7 @@ export type InvestigationResult = {
   model_calls: number;
   fetches: number;
   source: Origin;
+  challenge: Challenge;
 };
 
 export type Step = {

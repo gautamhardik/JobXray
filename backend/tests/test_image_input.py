@@ -61,7 +61,7 @@ def test_screenshot_is_transcribed_and_investigated():
     assert result.decision == "STOP"
     fee = next(r for r in result.evidence if r.claim_id == "payment")
     assert fee.source_type == "screenshot"
-    assert client.calls == 2  # transcription, extraction (no company quote, so no domain proposal)
+    assert client.calls == 3  # transcription, extraction, self-challenge (no company quote, so no domain proposal)
 
 
 def test_excerpts_are_checked_against_the_transcription():

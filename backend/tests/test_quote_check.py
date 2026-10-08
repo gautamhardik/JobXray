@@ -63,8 +63,8 @@ def test_company_without_a_real_quote_becomes_unknown():
 def test_pipeline_reports_the_funnel_and_counts_model_calls():
     client = ScriptedClient(_raw_extraction())
     result = run_investigation(FEE_TEXT, client, saved_scraper({}))
-    assert client.calls == 2  # extraction, then the domain proposal (none proposed here)
-    assert result.model_calls == 2
+    assert client.calls == 3  # extraction, domain proposal (none proposed here), self-challenge
+    assert result.model_calls == 3
     assert result.funnel.detected == 3
     assert result.funnel.total == 6
     assert result.funnel.stages[0].label == "Opportunity offered"

@@ -15,10 +15,11 @@ from app.investigation.observe import inspectable, observe
 from app.config import MAX_MODEL_CALLS_IMAGE
 from app.input.image import transcribe
 from app.input.link import read_link
-from app.investigation.plan import career_links, check_domain, propose
+from app.investigation.challenge import CheckedHypothesis, plan_challenge, run_challenge
+from app.investigation.plan import ATS_HOSTS, _same_site, career_links, check_domain, normalize_url, propose
 from app.investigation.progress import NoProgress, Progress
-from app.llm.llm_client import LLMClient
-from app.web.scraper import FetchBudgetExceeded, FetchResult, Scraper
+from app.llm.llm_client import LLMClient, ModelBudgetExceeded, ModelCallError
+from app.web.scraper import FetchBudgetExceeded, FetchResult, PageLink, Scraper
 
 CLAIM_LABELS = {
     "company": "Company",
@@ -58,6 +59,13 @@ class Funnel(BaseModel):
     stages: list[FunnelStage]
 
 
+class Challenge(BaseModel):
+    hypotheses: list[CheckedHypothesis]
+    changed: bool
+    first_decision: str
+    note: str
+
+
 class InvestigationResult(BaseModel):
     decision: str
     severity: str
@@ -73,6 +81,7 @@ class InvestigationResult(BaseModel):
     model_calls: int
     fetches: int
     source: Origin
+    challenge: Challenge
 
 
 def run_from_link(
@@ -135,12 +144,32 @@ def run_investigation(
     payment_requested = record_pasted_facts(ledger, extraction, origin)
 
     official = check_official_sources(extraction, client, scraper, ledger, progress)
-    progress.skip("challenge", "Not built yet")
-    progress.start("decide")
-    result = decide(
+    first = decide(
         payment_requested=payment_requested,
         opportunity=official.status,
         direct_contradiction_on_payment_or_identity=official.policy_contradiction,
+    )
+
+    progress.start("challenge")
+    challenge = challenge_first_assessment(first, extraction, official, payment_requested, client, scraper, ledger)
+    progress.done("challenge", challenge.note)
+
+    progress.start("decide")
+    opportunity = official.status
+    if challenge_found_role(ledger) and official.domain_established and opportunity != "contradiction":
+        opportunity = opportunity_status(OfficialCheck(domain_established=True, relevant_page_inspected=True, supports_claim=True))
+    result = decide(
+        payment_requested=payment_requested,
+        opportunity=opportunity,
+        direct_contradiction_on_payment_or_identity=official.policy_contradiction or any(
+            r.claim_id == "recruitment_policy" and r.status == "contradiction" for r in ledger.records
+        ),
+    )
+    challenge.changed = result.decision != first.decision
+    challenge.note = (
+        "Assessment changed after contradictory evidence was found."
+        if challenge.changed
+        else challenge.note
     )
     top = top_evidence(ledger.records, result.decision)
     progress.done("decide", f"{result.decision} · {result.severity}")
@@ -160,13 +189,56 @@ def run_investigation(
         model_calls=client.calls,
         fetches=scraper.fetches,
         source=origin,
+        challenge=challenge,
     )
+
+
+def challenge_first_assessment(first, extraction, official, payment_requested, client, scraper, ledger) -> Challenge:
+    """Call 4 plus the targeted fetches. A failure here keeps the first decision and says so."""
+    try:
+        plan = plan_challenge(first.decision, first.rule, ledger.records, official.links, client)
+    except (ModelCallError, ModelBudgetExceeded) as error:
+        return Challenge(hypotheses=[], changed=False, first_decision=first.decision, note=f"The self-challenge could not run: {error}")
+    outcome = run_challenge(
+        plan, first.decision, official.links, extraction.role, payment_requested, scraper, next_id=len(ledger.records) + 1
+    )
+    ledger.records.extend(outcome.new_records)
+    return Challenge(
+        hypotheses=outcome.hypotheses,
+        changed=False,
+        first_decision=first.decision,
+        note="No credible contradictory evidence found.",
+    )
+
+
+def challenge_found_role(ledger: Ledger) -> bool:
+    return any(r.claim_id == "opportunity" and r.status == "verified" and r.observation.startswith("Self-challenge") for r in ledger.records)
 
 
 class OfficialOutcome(BaseModel):
     status: Status
     policy_contradiction: bool = False
     dropped_quotes: int = 0
+    domain_established: bool = False
+    links: list[PageLink] = []  # official links not yet read, offered to the self-challenge
+
+
+def challenge_links(pages: list[FetchResult], domain: str, limit: int = 25) -> list[PageLink]:
+    """Same-site or jobs-platform links from the official pages that were not already fetched."""
+    read = {normalize_url(p.url) for p in pages} | {normalize_url(p.requested_url) for p in pages}
+    links: list[PageLink] = []
+    seen: set[str] = set(read)
+    for page in pages:
+        for link in page.links:
+            key = normalize_url(link.url)
+            host = link.url.split("/")[2] if "//" in link.url else ""
+            if key in seen or not (_same_site(link.url, domain) or any(host.endswith(a) for a in ATS_HOSTS)):
+                continue
+            seen.add(key)
+            links.append(link)
+            if len(links) >= limit:
+                return links
+    return links
 
 
 def check_official_sources(
@@ -238,7 +310,10 @@ def check_official_sources(
             if not careers
             else "The official careers pages could not be read (they may need JavaScript or blocked the request)."
         )
-        return opportunity("unknown", detail, source_type="official_page", source_url=domain.homepage.url, reliability="official")
+        outcome = opportunity("unknown", detail, source_type="official_page", source_url=domain.homepage.url, reliability="official")
+        outcome.domain_established = True
+        outcome.links = challenge_links([domain.homepage, *careers], domain.domain or "")
+        return outcome
 
     pages = [domain.homepage, *readable]
     checked = observe(extraction, pages, client)  # call 3
@@ -294,7 +369,13 @@ def check_official_sources(
             status="contradiction" if conflicts else "verified",
         )
 
-    return OfficialOutcome(status=status, policy_contradiction=policy_contradiction, dropped_quotes=checked.dropped_quotes)
+    return OfficialOutcome(
+        status=status,
+        policy_contradiction=policy_contradiction,
+        dropped_quotes=checked.dropped_quotes,
+        domain_established=True,
+        links=challenge_links(pages, domain.domain or ""),
+    )
 
 
 def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction, origin: Origin) -> bool:

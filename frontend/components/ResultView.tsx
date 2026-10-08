@@ -28,6 +28,11 @@ export default function ResultView({ result, onReset }: Props) {
         <div className="decision">{result.decision}</div>
         <div className="severity">{result.severity}</div>
         <p className="next-step">{result.next_step}</p>
+        {result.challenge.changed && (
+          <p className="revision-note">
+            {result.challenge.note} First assessment: {result.challenge.first_decision}.
+          </p>
+        )}
         {result.source.source_type === "linked_page" && result.source.source_url && (
           <p className="muted small">
             Read from:{" "}
@@ -88,6 +93,31 @@ export default function ResultView({ result, onReset }: Props) {
           </details>
         );
       })}
+
+      <details className="detail">
+        <summary>Self-challenge: {result.challenge.note}</summary>
+        {result.challenge.hypotheses.length === 0 ? (
+          <p className="muted">No counter-hypotheses were checked.</p>
+        ) : (
+          <ol className="hypotheses">
+            {result.challenge.hypotheses.map((h, i) => (
+              <li key={i}>
+                <div className="stage-label">{h.question}</div>
+                <p>{h.finding}</p>
+                {h.checked_urls.length > 0 && (
+                  <p className="evidence-meta">
+                    Checked: {h.checked_urls.join(" · ")}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+        <p className="muted small">
+          JobXray looks for evidence that could prove its first assessment wrong, on the company&apos;s official
+          site only. First assessment: {result.challenge.first_decision}.
+        </p>
+      </details>
 
       <details className="detail">
         <summary>Reasoning</summary>

@@ -399,3 +399,16 @@ button.link {
     display: none;
   }
 }
+
+.revision-note {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--foreground);
+  font-size: 0.9rem;
+}
+
+.hypotheses {
+  display: grid;
+  gap: 12px;
+  padding-left: 20px;
+}

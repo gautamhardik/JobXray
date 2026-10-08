@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from app.investigation.challenge import ChallengePlan
 from app.investigation.plan import PlanProposal
 from app.llm.llm_client import LLMClient
 from app.web.scraper import FetchResult, Scraper, _result
@@ -18,6 +19,7 @@ class ScriptedClient(LLMClient):
         super().__init__() if max_calls is None else super().__init__(max_calls=max_calls)
         self.answers = {type(a): a for a in answers}
         self.answers.setdefault(PlanProposal, PlanProposal(official_domain=None, questions=[]))
+        self.answers.setdefault(ChallengePlan, ChallengePlan(hypotheses=[]))
         self.transcription = transcription
 
     def read_image(self, system, instruction, image_data_url, max_tokens=4000):
