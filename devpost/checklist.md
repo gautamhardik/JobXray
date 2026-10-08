@@ -138,6 +138,8 @@ Activity mode:
 
 ## Revisions
 
+- Slice 6 committed before its live-model run (cap exhausted). Verified: 10 screenshot tests (bad type, fake PNG, over-4 MB refused before any model call; transcription shown and used; excerpts checked against the transcription; NO_TEXT gives a plain error; budget 5 for images and 4 otherwise). `llm_client.py` gained `read_image()` for the vision model (`VISION_MODEL`, default `google/gemma-4-31b-it:free`). A generated chat-style screenshot of the fee conversation (`backend/tests/fixtures/fee_screenshot.png`, made with Pillow as a dev-only tool) is ready for the live run.
+
 - Slice 5 committed before its live-model run (cap exhausted). Verified: 11 link tests (private addresses refused before any request, login wall and blocked pages give the paste-instead message, linked page produces the same stages, linked facts stay user-provided, one fetch from the shared budget) and live link reading of python.org/jobs and an Internshala listing (read) plus LinkedIn and Naukri (plain paste-instead message).
 
 - Slice 4 code committed before its live-model verification, at the learner's direction, because the free-model daily cap was exhausted; the box stays unchecked until the live run after the reset. Already verified: 48 tests (fixtures for verified, unverified, blocked, JavaScript-only, look-alike, name-only, no-fee-policy contradiction, budget), and the live domain check plus careers discovery on infosys.com, tcs.com, wipro.com, microsoft.com and python.org (all established, all careers pages readable).

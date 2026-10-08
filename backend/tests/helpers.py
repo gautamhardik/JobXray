@@ -14,10 +14,19 @@ PAGES = Path(__file__).parent / "fixtures" / "pages"
 class ScriptedClient(LLMClient):
     """Answers each call with the scripted object for its output schema."""
 
-    def __init__(self, *answers: BaseModel):
-        super().__init__()
+    def __init__(self, *answers: BaseModel, transcription: str = "", max_calls: int | None = None):
+        super().__init__() if max_calls is None else super().__init__(max_calls=max_calls)
         self.answers = {type(a): a for a in answers}
         self.answers.setdefault(PlanProposal, PlanProposal(official_domain=None, questions=[]))
+        self.transcription = transcription
+
+    def read_image(self, system, instruction, image_data_url, max_tokens=4000):
+        if self.calls >= self.max_calls:
+            from app.llm.llm_client import ModelBudgetExceeded
+
+            raise ModelBudgetExceeded("budget")
+        self.calls += 1
+        return self.transcription
 
     def structured(self, system, user, output_format, max_tokens=8000):
         if self.calls >= self.max_calls:

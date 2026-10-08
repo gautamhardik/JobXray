@@ -45,6 +45,14 @@ export default function ResultView({ result, onReset }: Props) {
         ))}
       </div>
 
+      {result.source.transcription && (
+        <details className="detail">
+          <summary>What JobXray read from your screenshot</summary>
+          <pre className="transcription">{result.source.transcription}</pre>
+          <p className="muted small">Every quoted excerpt was checked against this transcription.</p>
+        </details>
+      )}
+
       <details className="detail">
         <summary>
           {result.funnel.detected} of {result.funnel.total} recruitment-funnel stages detected

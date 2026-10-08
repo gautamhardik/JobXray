@@ -12,7 +12,7 @@ from typing import Any, TypeVar
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from app.config import MAX_MODEL_CALLS, OPENROUTER_API_KEY, OPENROUTER_MODEL
+from app.config import MAX_MODEL_CALLS, OPENROUTER_API_KEY, OPENROUTER_MODEL, VISION_MODEL
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -38,13 +38,8 @@ class LLMClient:
         self._http = http
 
     def structured(self, system: str, user: str, output_format: type[T], max_tokens: int = 8000) -> T:
-        if self.calls >= self.max_calls:
-            raise ModelBudgetExceeded(f"Model-call budget of {self.max_calls} reached.")
-        if not OPENROUTER_API_KEY or not OPENROUTER_MODEL:
-            raise ModelCallError("JobXray is not configured: set OPENROUTER_API_KEY and OPENROUTER_MODEL.")
-        self.calls += 1
-
-        body = {
+        """A reply that must match output_format's schema (calls 1-4)."""
+        payload = self._post({
             "model": OPENROUTER_MODEL,
             "max_tokens": max_tokens,
             "messages": [
@@ -59,12 +54,38 @@ class LLMClient:
                     "schema": strict_schema(output_format),
                 },
             },
-        }
+        })
+        return parse_reply(payload, output_format)
+
+    def read_image(self, system: str, instruction: str, image_data_url: str, max_tokens: int = 4000) -> str:
+        """A plain-text reply about one image, from the vision model (screenshot transcription)."""
+        payload = self._post({
+            "model": VISION_MODEL,
+            "max_tokens": max_tokens,
+            "messages": [
+                {"role": "system", "content": system},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": instruction},
+                        {"type": "image_url", "image_url": {"url": image_data_url}},
+                    ],
+                },
+            ],
+        })
+        return parse_text_reply(payload)
+
+    def _post(self, body: dict[str, Any]) -> dict[str, Any]:
+        if self.calls >= self.max_calls:
+            raise ModelBudgetExceeded(f"Model-call budget of {self.max_calls} reached.")
+        if not OPENROUTER_API_KEY or not body.get("model"):
+            raise ModelCallError("JobXray is not configured: set OPENROUTER_API_KEY and the model names.")
+        self.calls += 1
+
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             "X-Title": "JobXray",
         }
-
         try:
             response = self._client().post(OPENROUTER_URL, json=body, headers=headers)
         except httpx.TimeoutException:
@@ -80,13 +101,25 @@ class LLMClient:
             raise ModelCallError("The free model's request limit was reached. Try again later.")
         if response.status_code >= 400:
             raise ModelCallError(f"OpenRouter returned an error ({response.status_code}). Try again.")
-
-        return parse_reply(response.json(), output_format)
+        return response.json()
 
     def _client(self) -> httpx.Client:
         if self._http is None:
             self._http = httpx.Client(timeout=TIMEOUT_SECONDS)
         return self._http
+
+
+def parse_text_reply(payload: dict[str, Any]) -> str:
+    if payload.get("error"):
+        raise ModelCallError("OpenRouter reported an error for this request. Try again.")
+    try:
+        choice = payload["choices"][0]
+        content = choice["message"]["content"] or ""
+    except (KeyError, IndexError, TypeError):
+        raise ModelCallError("The model returned an empty answer. Try again.")
+    if choice.get("finish_reason") == "length":
+        raise ModelCallError("The answer was cut off before it finished. Try a smaller screenshot.")
+    return content.strip()
 
 
 def parse_reply(payload: dict[str, Any], output_format: type[T]) -> T:

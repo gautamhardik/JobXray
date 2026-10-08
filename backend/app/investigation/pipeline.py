@@ -12,6 +12,8 @@ from app.evidence.ledger import EvidenceRecord, Ledger, Reliability, SourceType,
 from app.evidence.status import OfficialCheck, decide, opportunity_status, top_evidence
 from app.investigation.extract import FUNNEL_ORDER, STAGE_LABELS, CheckedExtraction, extract
 from app.investigation.observe import inspectable, observe
+from app.config import MAX_MODEL_CALLS_IMAGE
+from app.input.image import transcribe
 from app.input.link import read_link
 from app.investigation.plan import career_links, check_domain, propose
 from app.llm.llm_client import LLMClient
@@ -78,6 +80,14 @@ def run_from_link(url: str, client: LLMClient | None = None, scraper: Scraper | 
     page = read_link(url, scraper)
     origin = Origin(source_type="linked_page", source_url=page.url)
     return run_investigation(page.text, client, scraper, origin)
+
+
+def run_from_image(data_url: str, client: LLMClient | None = None, scraper: Scraper | None = None) -> InvestigationResult:
+    """Screenshot input: one transcription call (budget 5 instead of 4), then investigate the transcription."""
+    client = client or LLMClient(max_calls=MAX_MODEL_CALLS_IMAGE)
+    text = transcribe(data_url, client)
+    origin = Origin(source_type="screenshot", transcription=text)
+    return run_investigation(text, client, scraper, origin)
 
 
 def run_investigation(

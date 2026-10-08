@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.config import FRONTEND_ORIGINS, MAX_INPUT_CHARS
 from app.input import InputUnreadable
-from app.investigation.pipeline import InvestigationResult, run_from_link, run_investigation
+from app.investigation.pipeline import InvestigationResult, run_from_image, run_from_link, run_investigation
 from app.llm.llm_client import ModelBudgetExceeded, ModelCallError
 from app.web.scraper import FetchBudgetExceeded
 
@@ -24,22 +24,25 @@ app.add_middleware(
 
 
 class InvestigationRequest(BaseModel):
-    """Exactly one of: pasted text, or a link to a job posting."""
+    """Exactly one of: pasted text, a link to a job posting, or a screenshot (data URL)."""
 
     text: str | None = Field(default=None, max_length=MAX_INPUT_CHARS)
     url: str | None = Field(default=None, max_length=2_000)
+    image: str | None = Field(default=None, max_length=6_000_000)
 
     @model_validator(mode="after")
     def exactly_one_input(self) -> "InvestigationRequest":
-        given = [v for v in (self.text, self.url) if v is not None and v.strip()]
+        given = [v for v in (self.text, self.url, self.image) if v is not None and v.strip()]
         if len(given) != 1:
-            raise ValueError("Paste the recruiter or job messages, or a link to the job posting, before investigating.")
+            raise ValueError("Paste the recruiter or job messages, a link to the job posting, or a screenshot before investigating.")
         return self
 
 
 @app.post("/api/investigations", response_model=InvestigationResult)
 def start_investigation(request: InvestigationRequest) -> InvestigationResult:
     try:
+        if request.image:
+            return run_from_image(request.image)
         if request.url:
             return run_from_link(request.url)
         return run_investigation(request.text or "")

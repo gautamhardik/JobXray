@@ -10,6 +10,7 @@ import { startInvestigation, type InvestigationResult } from "@/lib/api";
 
 export default function Home() {
   const [text, setText] = useState("");
+  const [image, setImage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<InvestigationResult | null>(null);
@@ -19,7 +20,7 @@ export default function Home() {
     setError(null);
     try {
       const link = asLink(text);
-      setResult(await startInvestigation(link ? { url: link } : { text }));
+      setResult(await startInvestigation(image ? { image } : link ? { url: link } : { text }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -40,11 +41,19 @@ export default function Home() {
           onReset={() => {
             setResult(null);
             setText("");
+            setImage(null);
           }}
         />
       ) : (
         <>
-          <PasteBox value={text} onChange={setText} onSubmit={investigate} busy={busy} />
+          <PasteBox
+            value={text}
+            onChange={setText}
+            image={image}
+            onImage={setImage}
+            onSubmit={investigate}
+            busy={busy}
+          />
           {error && <p className="message">{error}</p>}
         </>
       )}
