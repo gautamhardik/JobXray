@@ -1,0 +1,9 @@
+{
+  "india_internship_upi": {"must": ["opportunity", "payment_request"], "must_not": ["group_orientation"]},
+  "us_reply_yes_text": {"must": ["opportunity", "recruiter_contact", "private_to_group", "group_orientation"], "must_not": ["payment_request", "training_pitch"]},
+  "fake_check_equipment": {"must": ["opportunity", "payment_request"], "must_not": ["private_to_group", "group_orientation"]},
+  "task_scam": {"must": ["opportunity", "recruiter_contact", "private_to_group", "payment_request"], "must_not": ["group_orientation"]},
+  "legit_posting": {"must": ["opportunity"], "must_not": ["payment_request", "private_to_group", "group_orientation", "training_pitch"]},
+  "spoofed_email_screening": {"must": ["opportunity", "payment_request", "group_orientation"], "must_not": ["private_to_group"]},
+  "prompt_injection": {"must": ["opportunity", "recruiter_contact", "private_to_group", "training_pitch", "payment_request"], "must_not": []}
+}

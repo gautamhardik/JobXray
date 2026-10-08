@@ -5,6 +5,7 @@
 import { useState } from "react";
 
 import PasteBox from "@/components/PasteBox";
+import ResultView from "@/components/ResultView";
 import { startInvestigation, type InvestigationResult } from "@/lib/api";
 
 export default function Home() {
@@ -33,23 +34,13 @@ export default function Home() {
       </header>
 
       {result ? (
-        <section className="result" aria-live="polite">
-          <div className="decision">{result.decision}</div>
-          <div className="severity">{result.severity}</div>
-          <p>{result.summary}</p>
-          <div className="result-actions">
-            <button
-              type="button"
-              className="link"
-              onClick={() => {
-                setResult(null);
-                setText("");
-              }}
-            >
-              Start a new investigation
-            </button>
-          </div>
-        </section>
+        <ResultView
+          result={result}
+          onReset={() => {
+            setResult(null);
+            setText("");
+          }}
+        />
       ) : (
         <>
           <PasteBox value={text} onChange={setText} onSubmit={investigate} busy={busy} />

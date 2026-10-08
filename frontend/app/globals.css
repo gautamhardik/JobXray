@@ -142,3 +142,55 @@ button.link {
 .result-actions {
   margin-top: 24px;
 }
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 8px 0 24px;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.funnel {
+  list-style: none;
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+}
+
+.funnel li {
+  margin-bottom: 14px;
+}
+
+.stage-label {
+  font-weight: 600;
+}
+
+.excerpt {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.unknown {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.small {
+  font-size: 0.85rem;
+  margin-top: 8px;
+}

@@ -2,10 +2,28 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+export type FunnelStage = {
+  stage: string;
+  label: string;
+  excerpt: string;
+};
+
+export type Claim = {
+  kind: string;
+  value: string;
+  excerpt: string;
+};
+
 export type InvestigationResult = {
   decision: string;
   severity: string;
   summary: string;
+  company: string | null;
+  role: string | null;
+  funnel: { detected: number; total: number; stages: FunnelStage[] };
+  claims: Claim[];
+  dropped_quotes: number;
+  model_calls: number;
 };
 
 export async function startInvestigation(text: string): Promise<InvestigationResult> {

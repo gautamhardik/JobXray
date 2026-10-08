@@ -9,7 +9,7 @@ Build mode: learn
 
 ## Slices
 
-- [ ] **1. You can paste text, press Investigate, and see a result from the backend**
+- [x] **1. You can paste text, press Investigate, and see a result from the backend**
   Becomes usable: The paste screen sends text to the FastAPI backend, which returns a fixed placeholder result that the result view shows. The whole path from browser to server and back works before any real analysis exists.
   Why now: Proves the frontend, backend, and their connection end to end, so every later slice lands on a working path. Bootstrapping (scaffolds, dependencies, config, git-ignored env file) happens here because it is needed for the first real behavior.
   PRD ref: `prd.md > Features and Behavior > Investigating an opportunity` (paste and submit), `prd.md > Screens and Layout`
@@ -19,12 +19,12 @@ Build mode: learn
   Learner check: Open the app, paste any text, press Investigate, and say whether the first screen looks calm and clear, and whether the placeholder result appears where you expected.
   Commit: `Add paste screen and backend round trip`
 
-- [ ] **2. Pasted messages reveal their recruitment funnel, with the exact text behind each stage**
+- [x] **2. Pasted messages reveal their recruitment funnel, with the exact text behind each stage**
   Becomes usable: Pasting a recruiter conversation shows which funnel stages appear (for example "3 of 6 recruitment-funnel stages detected"), and each stage links to the excerpt that supports it. Quotes that are not in the pasted text are discarded.
-  Why now: This is the product's kernel: the sequence, not a keyword, is the signal. It is also the first real use of the Claude API, so the model ID and key get checked here, while the rest of the build is still small.
+  Why now: This is the product's kernel: the sequence, not a keyword, is the signal. It is also the first real model call (OpenRouter), so the model and key get checked here, while the rest of the build is still small.
   PRD ref: `prd.md > Features and Behavior > Investigating an opportunity` (company and role, funnel, excerpts), `prd.md > Features and Behavior > Evidence` (Fact status)
-  Spec ref: `spec.md > Components > Backend > extract.py` (call 1), `spec.md > Components > Backend > claude_client.py`, `spec.md > Components > Backend > pipeline.py` (model-call budget), `spec.md > Stack > Reasoning`, `spec.md > Decisions and Open Issues > Open issues` (model ID)
-  Build: Verify the current Claude model ID against the API documentation and set `CLAUDE_MODEL` in `backend/.env` (ignored) and `.env.example` (empty). Write `app/llm/claude_client.py` (the only model caller; counts calls against `MAX_MODEL_CALLS = 4`), `app/prompts/extract.md`, and `app/investigation/extract.py`. Extraction returns claims (company, role, stipend, fee, application link) and funnel stages, each with an excerpt. Code checks every excerpt is a substring of the pasted text; any failing excerpt is dropped and counted. Wire the result into the pipeline and the result view. Keep the placeholder decision for now.
+  Spec ref: `spec.md > Components > Backend > extract.py` (call 1), `spec.md > Components > Backend > llm_client.py`, `spec.md > Components > Backend > pipeline.py` (model-call budget), `spec.md > Stack > Reasoning`, `spec.md > Decisions and Open Issues > Open issues` (model ID)
+  Build: Write `app/llm/llm_client.py` (the only model caller, through OpenRouter; requests strict JSON, validates it, counts calls against `MAX_MODEL_CALLS = 4`), `app/prompts/extract.md`, and `app/investigation/extract.py`. Extraction returns claims (company, role, stipend, fee, application link) and funnel stages, each with an excerpt. Code checks every excerpt is a substring of the pasted text; any failing excerpt is dropped and counted. Wire the result into the pipeline and the result view. Keep the placeholder decision for now.
   Verify (mechanical): Unit test `tests/test_quote_check.py`: an excerpt present in the text is kept, an altered excerpt is dropped. Run the fixture recruiter conversation through the backend and confirm the funnel stages and excerpts. Call the backend with the model call stubbed and confirm the call counter increments once per investigation. Confirm `backend/.env` is not listed by `git status`.
   Learner check: Paste a recruiter conversation (with the fee and the WhatsApp group) and say whether each funnel stage shown is the right one and whether its excerpt is really from your text.
   Commit: `Extract claims and funnel stages from pasted text`
@@ -70,11 +70,11 @@ Build mode: learn
   Commit: `Challenge the first verdict and revise when evidence changes`
 
 - [ ] **7. The example investigation works without the internet, and failures show plain messages**
-  Becomes usable: A "Try an example" option loads a saved investigation, clearly labeled Cached. When the Claude API or the web fails, the person sees a plain message, never a guessed result.
+  Becomes usable: A "Try an example" option loads a saved investigation, clearly labeled Cached. When the model or the web fails, the person sees a plain message, never a guessed result.
   Why now: The demo recording and any judge's first click depend on this. It comes after the features it protects, so the saved case is a real run.
   PRD ref: `prd.md > States and Boundaries` (first use, cached demo, persistence, official site unreachable, input cannot be read), `prd.md > Screens and Layout` (example option)
   Spec ref: `spec.md > Components > Backend > cached_case.json`, `spec.md > Important Failure Modes`, `spec.md > Decisions and Open Issues > Open issues` (sample case choice)
-  Build: Save one real investigation as `app/samples/cached_case.json` with every evidence record marked `cached`. Add "Try an example" to the paste screen, loading that case with a visible Cached label on every record and the result. Map Claude API errors, timeouts, and budget refusals to plain messages in the result view. Stop an investigation cleanly if the server restarts (frontend shows the interrupted message).
+  Build: Save one real investigation as `app/samples/cached_case.json` with every evidence record marked `cached`. Add "Try an example" to the paste screen, loading that case with a visible Cached label on every record and the result. Map model errors, timeouts, free-tier rate limits, and budget refusals to plain messages in the result view. Stop an investigation cleanly if the server restarts (frontend shows the interrupted message).
   Verify (mechanical): Load the example with the network disabled and confirm the full result appears with Cached labels. Make the API key invalid and confirm the plain error message appears and no partial result is shown. Run `pytest` for the full suite.
   Learner check: Turn off your internet, open the app, and load the example. Say whether the result still makes sense, and whether it is clearly labeled as an example.
   Commit: `Add cached example and plain failure messages`
@@ -117,6 +117,11 @@ Reflection:
 Activity mode:
 
 ## Revisions
+
+- Slice 2 learner check performed by the agent at the learner's request: 7 composite messages based on FTC and CyberPeace scam patterns (plus a legitimate posting and a prompt-injection attempt) in `backend/tests/fixtures/realworld/`, expected stages written before running; 7/7 matched on the live free model. Generous stage calls noted ("training kit link" counted as a training pitch).
+
+- Reasoning moved from the Claude API to OpenRouter free models (`nvidia/nemotron-3-super-120b-a12b:free` by default, configurable), with no backup provider; `claude_client.py` became `llm_client.py` — the learner chose free models during slice 2. Accepted tradeoffs: about 12 investigations a day on the free tier, possible prompt logging by free providers, and less reliable structured output.
+- Quote check lives in `app/evidence/quotes.py`, shared by extraction and (later) page observations — the spec named the test but not the module.
 
 - Look and Feel now allows restrained CSS scan motion during an active investigation (first-screen start and progress view only), with the result and evidence static; Three.js and threeui.com rejected — learner asked for a cooler, animated feel mid-build and chose the mix option to keep the evidence calm and avoid a new dependency.
 - Python 3.13 used instead of the spec's 3.12 — it is the version installed on the learner's machine; no code depends on the difference.

@@ -3,11 +3,13 @@
 See spec.md > Components > Backend > app/main.py.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from app.config import FRONTEND_ORIGINS, MAX_INPUT_CHARS
+from app.investigation.pipeline import InvestigationResult, run_investigation
+from app.llm.llm_client import ModelBudgetExceeded, ModelCallError
 
 app = FastAPI(title="JobXray")
 
@@ -30,17 +32,9 @@ class InvestigationRequest(BaseModel):
         return value
 
 
-class InvestigationResult(BaseModel):
-    decision: str
-    severity: str
-    summary: str
-
-
 @app.post("/api/investigations", response_model=InvestigationResult)
 def start_investigation(request: InvestigationRequest) -> InvestigationResult:
-    # Placeholder result: slice 1 proves the round trip only.
-    return InvestigationResult(
-        decision="VERIFY FIRST",
-        severity="Placeholder",
-        summary=f"Received {len(request.text)} characters. Analysis is not built yet.",
-    )
+    try:
+        return run_investigation(request.text)
+    except (ModelCallError, ModelBudgetExceeded) as error:
+        raise HTTPException(status_code=502, detail=str(error))
