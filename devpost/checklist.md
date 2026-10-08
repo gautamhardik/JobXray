@@ -138,6 +138,10 @@ Activity mode:
 
 ## Revisions
 
+- Slice 4 code committed before its live-model verification, at the learner's direction, because the free-model daily cap was exhausted; the box stays unchecked until the live run after the reset. Already verified: 48 tests (fixtures for verified, unverified, blocked, JavaScript-only, look-alike, name-only, no-fee-policy contradiction, budget), and the live domain check plus careers discovery on infosys.com, tcs.com, wipro.com, microsoft.com and python.org (all established, all careers pages readable).
+- Careers discovery prefers strong words (careers, jobs, join us, hiring) and only falls back to weaker ones; URLs are normalized and identical pages read once — the live check picked Microsoft's "Students and educators" page and fetched Infosys' careers page twice.
+- Scrapling needs its `fetchers` extra (`scrapling[fetchers]`), and the scraper follows redirects itself so every hop passes the private-address guard.
+
 - Slice 3 live check ran the real pipeline and rules with the model call replaced by a canned extraction (STOP for the fee conversation, VERIFY FIRST without the fee, confirmed in the browser), because the OpenRouter free-model daily cap (50 requests) was exhausted; a live-model re-run is due once the cap resets. The cap is a demo and judging risk to resolve before deployment.
 
 - Link and screenshot input added as slices 5 and 6, after the official-site check (later slices renumbered 7–10); the model-call budget is 5 for screenshot investigations — the learner asked for every input type, especially links, during slice 2. Scope, PRD, and spec updated to match.

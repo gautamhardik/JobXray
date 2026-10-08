@@ -1,16 +1,20 @@
 """The investigation sequence.
 
-Slice 3: extraction (call 1) feeds the evidence ledger, and the decision comes
-from the rules in app/evidence/status.py, not from the model.
+Extraction (call 1) feeds the evidence ledger; the official-site check (call 2,
+the domain check, careers fetches, call 3) adds official evidence; the decision
+comes from the rules in app/evidence/status.py, not from the model.
 See spec.md > Components > Backend > app/investigation/pipeline.py.
 """
 
 from pydantic import BaseModel
 
-from app.evidence.ledger import EvidenceRecord, Ledger
+from app.evidence.ledger import EvidenceRecord, Ledger, Status
 from app.evidence.status import OfficialCheck, decide, opportunity_status, top_evidence
 from app.investigation.extract import FUNNEL_ORDER, STAGE_LABELS, CheckedExtraction, extract
+from app.investigation.observe import inspectable, observe
+from app.investigation.plan import career_links, check_domain, propose
 from app.llm.llm_client import LLMClient
+from app.web.scraper import FetchBudgetExceeded, FetchResult, Scraper
 
 CLAIM_LABELS = {
     "company": "Company",
@@ -47,31 +51,27 @@ class InvestigationResult(BaseModel):
     top_evidence: list[str]
     dropped_quotes: int
     model_calls: int
+    fetches: int
 
 
-def run_investigation(text: str, client: LLMClient | None = None) -> InvestigationResult:
+def run_investigation(
+    text: str,
+    client: LLMClient | None = None,
+    scraper: Scraper | None = None,
+) -> InvestigationResult:
     client = client or LLMClient()
+    scraper = scraper or Scraper()
     extraction = extract(text, client)
 
     ledger = Ledger()
     payment_requested = record_pasted_facts(ledger, extraction)
 
-    check = OfficialCheck()  # slice 4 fills this from the company's official site
-    status = opportunity_status(check)
-    ledger.add(
-        claim_id="opportunity",
-        claim=opportunity_claim(extraction),
-        source_type="none",
-        reliability="unknown",
-        observation=(
-            "The company's official website has not been checked."
-            if extraction.company
-            else "No company is named, so no official source can be checked."
-        ),
-        status=status,
+    official = check_official_sources(extraction, client, scraper, ledger)
+    result = decide(
+        payment_requested=payment_requested,
+        opportunity=official.status,
+        direct_contradiction_on_payment_or_identity=official.policy_contradiction,
     )
-
-    result = decide(payment_requested=payment_requested, opportunity=status)
     top = top_evidence(ledger.records, result.decision)
 
     stages = [
@@ -91,9 +91,134 @@ def run_investigation(text: str, client: LLMClient | None = None) -> Investigati
         funnel=funnel,
         evidence=ledger.records,
         top_evidence=[r.id for r in top],
-        dropped_quotes=extraction.dropped_quotes,
+        dropped_quotes=extraction.dropped_quotes + official.dropped_quotes,
         model_calls=client.calls,
+        fetches=scraper.fetches,
     )
+
+
+class OfficialOutcome(BaseModel):
+    status: Status
+    policy_contradiction: bool = False
+    dropped_quotes: int = 0
+
+
+def check_official_sources(
+    extraction: CheckedExtraction,
+    client: LLMClient,
+    scraper: Scraper,
+    ledger: Ledger,
+) -> OfficialOutcome:
+    """Calls 2 and 3 plus the fetches between them. Every outcome lands in the ledger."""
+    claim = opportunity_claim(extraction)
+
+    def opportunity(status: Status, observation: str, **source) -> OfficialOutcome:
+        ledger.add(claim_id="opportunity", claim=claim, observation=observation, status=status, **source)
+        return OfficialOutcome(status=status)
+
+    if not extraction.company:
+        return opportunity(
+            "unknown",
+            "No company is named, so no official source can be checked.",
+            source_type="none",
+            reliability="unknown",
+        )
+
+    try:
+        proposal = propose(extraction, client)  # call 2
+        domain = check_domain(proposal.official_domain, extraction.company, scraper)
+    except FetchBudgetExceeded:
+        return opportunity("unknown", "The page-fetch budget ran out before the official site was checked.", source_type="none", reliability="unknown")
+
+    ledger.add(
+        claim_id="official_domain",
+        claim=f"Official website of {extraction.company}" + (f": {domain.domain}" if domain.domain else ""),
+        source_type="official_page" if domain.homepage else "none",
+        source_url=domain.homepage.url if domain.homepage else None,
+        reliability="official" if domain.established else "unknown",
+        observation=domain.reason + " " + "; ".join(f"{'✓' if s.passed else '✗'} {s.name}" for s in domain.signals),
+        status="verified" if domain.established else "unknown",
+    )
+    if not domain.established or domain.homepage is None:
+        return opportunity(
+            "unknown",
+            "The company's official website could not be established, so the opportunity could not be checked against it.",
+            source_type="none",
+            reliability="unknown",
+        )
+
+    careers: list[FetchResult] = []
+    for url in career_links(domain.homepage, domain.domain or ""):
+        try:
+            careers.append(scraper.fetch(url))
+        except FetchBudgetExceeded:
+            break
+    readable: list[FetchResult] = []
+    for page in careers:
+        if inspectable(page) and all(page.text != r.text for r in readable):
+            readable.append(page)  # the same page under two addresses is read once
+    if not readable:
+        detail = (
+            "No careers or jobs page was found on the official site."
+            if not careers
+            else "The official careers pages could not be read (they may need JavaScript or blocked the request)."
+        )
+        return opportunity("unknown", detail, source_type="official_page", source_url=domain.homepage.url, reliability="official")
+
+    pages = [domain.homepage, *readable]
+    checked = observe(extraction, pages, client)  # call 3
+    by_id = {f"P{i}": p for i, p in enumerate(pages, start=1)}
+    careers_ids = {f"P{i}" for i in range(2, len(pages) + 1)}
+
+    role_match = next((o for o in checked.observations if o.topic == "role" and o.finding == "matches" and o.page_id in careers_ids), None)
+    role_conflict = next((o for o in checked.observations if o.topic == "role" and o.finding == "conflicts"), None)
+    check = OfficialCheck(
+        domain_established=True,
+        relevant_page_inspected=True,
+        supports_claim=role_match is not None,
+        contradicts_claim=role_conflict is not None,
+    )
+    status = opportunity_status(check)
+    evidence = role_conflict or role_match
+    page = by_id[evidence.page_id] if evidence else readable[0]
+    observation = {
+        "verified": "The company's official careers pages list this opportunity.",
+        "contradiction": "The company's official pages directly contradict this opportunity.",
+        "unverified": "The official careers pages that were read do not list this opportunity.",
+    }[status]
+    ledger.add(
+        claim_id="opportunity",
+        claim=claim,
+        source_type="official_page",
+        source_url=page.url,
+        excerpt=evidence.quote if evidence and evidence.quote else None,
+        reliability="official",
+        observation=observation + (f" {evidence.explanation}" if evidence else ""),
+        supports_or_contradicts="supports" if status == "verified" else ("contradicts" if status == "contradiction" else "neither"),
+        status=status,
+    )
+
+    policy_contradiction = False
+    for obs in checked.observations:
+        if obs.finding == "not_mentioned" or obs.topic == "role":
+            continue
+        page = by_id[obs.page_id]
+        conflicts = obs.finding == "conflicts"
+        if obs.topic == "recruitment_policy" and conflicts:
+            policy_contradiction = True
+        ledger.add(
+            claim_id="recruitment_policy" if obs.topic == "recruitment_policy" else "stipend",
+            claim="How the company recruits and whether it charges candidates" if obs.topic == "recruitment_policy" else "Stipend or pay for the role",
+            source_type="official_page",
+            source_url=page.url,
+            excerpt=obs.quote,
+            reliability="official",
+            observation=obs.explanation,
+            supports_or_contradicts="contradicts" if conflicts else "supports",
+            status="contradiction" if conflicts else "verified",
+        )
+
+    return OfficialOutcome(status=status, policy_contradiction=policy_contradiction, dropped_quotes=checked.dropped_quotes)
 
 
 def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction) -> bool:

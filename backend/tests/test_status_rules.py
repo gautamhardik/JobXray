@@ -6,7 +6,7 @@ from app.evidence.ledger import Ledger
 from app.evidence.status import OfficialCheck, decide, opportunity_status, top_evidence
 from app.investigation.extract import Extraction, ExtractedClaim, ExtractedStage
 from app.investigation.pipeline import run_investigation
-from app.llm.llm_client import LLMClient
+from tests.helpers import ScriptedClient, saved_scraper
 
 FEE_TEXT = (Path(__file__).parent / "fixtures" / "fee_conversation.txt").read_text(encoding="utf-8")
 
@@ -104,18 +104,12 @@ def _extraction(with_fee: bool) -> Extraction:
     return Extraction(company="Nexora Technologies", role="Business Analyst Internship", claims=claims, funnel_stages=stages)
 
 
-class _Stub(LLMClient):
-    def __init__(self, extraction: Extraction):
-        super().__init__()
-        self.extraction = extraction
-
-    def structured(self, system, user, output_format, max_tokens=8000):
-        self.calls += 1
-        return self.extraction
+def _run(extraction: Extraction):
+    return run_investigation(FEE_TEXT, ScriptedClient(extraction), saved_scraper({}))
 
 
 def test_fee_message_is_stop_with_the_fee_as_top_evidence():
-    result = run_investigation(FEE_TEXT, _Stub(_extraction(with_fee=True)))
+    result = _run(_extraction(with_fee=True))
     assert result.decision == "STOP"
     assert result.severity == "Critical concern"
     top = [next(r for r in result.evidence if r.id == i) for i in result.top_evidence]
@@ -127,7 +121,7 @@ def test_fee_message_is_stop_with_the_fee_as_top_evidence():
 
 
 def test_no_fee_message_is_verify_first():
-    result = run_investigation(FEE_TEXT, _Stub(_extraction(with_fee=False)))
+    result = _run(_extraction(with_fee=False))
     assert result.decision == "VERIFY FIRST"
     assert result.severity == "Significant uncertainty"
 
@@ -137,5 +131,5 @@ def test_payment_stage_without_fee_claim_still_counts_as_payment():
     extraction.funnel_stages.append(
         ExtractedStage(stage="payment_request", excerpt="Registration fee for the training is ₹1,999")
     )
-    result = run_investigation(FEE_TEXT, _Stub(extraction))
+    result = _run(extraction)
     assert result.decision == "STOP"
