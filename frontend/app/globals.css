@@ -194,3 +194,101 @@ button.link {
   font-size: 0.85rem;
   margin-top: 8px;
 }
+
+/* Decision colors: used only because the evidence rules justify them. */
+.decision-stop .decision {
+  color: var(--risk);
+}
+
+.decision-verify-first .decision {
+  color: var(--caution);
+}
+
+.decision-proceed .decision {
+  color: var(--verified);
+}
+
+.next-step {
+  margin-top: 4px;
+}
+
+.result {
+  margin-bottom: 32px;
+}
+
+.evidence-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.evidence {
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.evidence-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.evidence-claim {
+  font-weight: 600;
+}
+
+.evidence-observation {
+  margin-top: 6px;
+}
+
+.evidence-meta {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+}
+
+.badge-verified {
+  color: var(--verified);
+  border-color: var(--verified);
+}
+
+.badge-contradiction {
+  color: var(--risk);
+  border-color: var(--risk);
+}
+
+.badge-unverified {
+  color: var(--caution);
+  border-color: var(--caution);
+}
+
+.detail {
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+}
+
+.detail summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.detail > *:not(summary) {
+  margin-top: 12px;
+}

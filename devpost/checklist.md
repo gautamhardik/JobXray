@@ -29,7 +29,7 @@ Build mode: learn
   Learner check: Paste a recruiter conversation (with the fee and the WhatsApp group) and say whether each funnel stage shown is the right one and whether its excerpt is really from your text.
   Commit: `Extract claims and funnel stages from pasted text`
 
-- [ ] **3. Stops and verify-firsts come from the evidence rules, not from a model verdict**
+- [x] **3. Stops and verify-firsts come from the evidence rules, not from a model verdict**
   Becomes usable: A pasted message with a payment request shows STOP with the payment fact as the top evidence. A message with no payment request and no official check shows VERIFY FIRST. The decision and its reasons are produced by code.
   Why now: The decision logic is the part most worth testing in isolation. Doing it before the web check means the rules are proven before real web evidence arrives.
   PRD ref: `prd.md > Features and Behavior > Evidence`, `prd.md > Features and Behavior > Result and recommendation`, `prd.md > States and Boundaries` (official site unreachable defaults to Verify First)
@@ -137,6 +137,8 @@ Reflection:
 Activity mode:
 
 ## Revisions
+
+- Slice 3 live check ran the real pipeline and rules with the model call replaced by a canned extraction (STOP for the fee conversation, VERIFY FIRST without the fee, confirmed in the browser), because the OpenRouter free-model daily cap (50 requests) was exhausted; a live-model re-run is due once the cap resets. The cap is a demo and judging risk to resolve before deployment.
 
 - Link and screenshot input added as slices 5 and 6, after the official-site check (later slices renumbered 7–10); the model-call budget is 5 for screenshot investigations — the learner asked for every input type, especially links, during slice 2. Scope, PRD, and spec updated to match.
 

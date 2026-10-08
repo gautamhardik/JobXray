@@ -8,20 +8,36 @@ export type FunnelStage = {
   excerpt: string;
 };
 
-export type Claim = {
-  kind: string;
-  value: string;
-  excerpt: string;
+export type EvidenceStatus = "fact" | "verified" | "unverified" | "unknown" | "contradiction";
+
+export type EvidenceRecord = {
+  id: string;
+  claim_id: string;
+  claim: string;
+  source_type: string;
+  source_url: string | null;
+  excerpt: string | null;
+  reliability: string;
+  observation: string;
+  supports_or_contradicts: string;
+  status: EvidenceStatus;
+  live_or_cached: "live" | "cached";
+  checked_at: string;
 };
 
+export type Decision = "STOP" | "VERIFY FIRST" | "PROCEED";
+
 export type InvestigationResult = {
-  decision: string;
+  decision: Decision;
   severity: string;
+  next_step: string;
+  rule: string;
   summary: string;
   company: string | null;
   role: string | null;
   funnel: { detected: number; total: number; stages: FunnelStage[] };
-  claims: Claim[];
+  evidence: EvidenceRecord[];
+  top_evidence: string[];
   dropped_quotes: number;
   model_calls: number;
 };
