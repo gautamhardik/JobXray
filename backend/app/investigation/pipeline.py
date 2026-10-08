@@ -6,6 +6,8 @@ comes from the rules in app/evidence/status.py, not from the model.
 See spec.md > Components > Backend > app/investigation/pipeline.py.
 """
 
+from datetime import datetime
+
 from pydantic import BaseModel
 
 from app.evidence.ledger import EvidenceRecord, Ledger, Reliability, SourceType, Status
@@ -82,6 +84,7 @@ class InvestigationResult(BaseModel):
     fetches: int
     source: Origin
     challenge: Challenge
+    cached_at: datetime | None = None  # set only on the saved example; never on a live run
 
 
 def run_from_link(

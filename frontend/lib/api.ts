@@ -66,6 +66,7 @@ export type InvestigationResult = {
   fetches: number;
   source: Origin;
   challenge: Challenge;
+  cached_at: string | null;
 };
 
 export type Step = {
@@ -106,6 +107,19 @@ export async function getInvestigation(id: string): Promise<InvestigationStatus>
   let response: Response;
   try {
     response = await fetch(`${API_URL}/api/investigations/${encodeURIComponent(id)}`);
+  } catch {
+    throw new Error(UNREACHABLE);
+  }
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return response.json();
+}
+
+export async function getExample(): Promise<InvestigationResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/example`);
   } catch {
     throw new Error(UNREACHABLE);
   }

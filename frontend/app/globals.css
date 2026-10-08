@@ -412,3 +412,18 @@ button.link {
   gap: 12px;
   padding-left: 20px;
 }
+
+.example-line {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.cached-banner {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+}

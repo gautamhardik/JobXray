@@ -7,7 +7,7 @@ import { useState } from "react";
 import PasteBox, { asLink } from "@/components/PasteBox";
 import ProgressChecklist from "@/components/ProgressChecklist";
 import ResultView from "@/components/ResultView";
-import { startInvestigation, type InvestigationResult } from "@/lib/api";
+import { getExample, startInvestigation, type InvestigationResult } from "@/lib/api";
 
 export default function Home() {
   const [text, setText] = useState("");
@@ -16,6 +16,15 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<InvestigationResult | null>(null);
   const [runningId, setRunningId] = useState<string | null>(null);
+
+  async function showExample() {
+    setError(null);
+    try {
+      setResult(await getExample());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The example could not be loaded.");
+    }
+  }
 
   async function investigate() {
     setBusy(true);
@@ -69,6 +78,12 @@ export default function Home() {
             busy={busy}
           />
           {error && <p className="message">{error}</p>}
+          <p className="example-line">
+            Not sure what to paste?{" "}
+            <button type="button" className="link" onClick={showExample}>
+              Try an example
+            </button>
+          </p>
         </>
       )}
     </main>

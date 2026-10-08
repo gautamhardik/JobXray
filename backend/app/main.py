@@ -10,10 +10,11 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.config import FRONTEND_ORIGINS, MAX_INPUT_CHARS
 from app.input import InputUnreadable
-from app.investigation.pipeline import run_from_image, run_from_link, run_investigation
+from app.investigation.pipeline import InvestigationResult, run_from_image, run_from_link, run_investigation
 from app.investigation.progress import Progress
 from app.jobs import InvestigationStatus, Jobs
 from app.llm.llm_client import ModelBudgetExceeded, ModelCallError
+from app.samples import load_example
 from app.web.scraper import FetchBudgetExceeded
 
 app = FastAPI(title="JobXray")
@@ -75,3 +76,12 @@ def get_investigation(investigation_id: str) -> InvestigationStatus:
     if status is None:
         raise HTTPException(status_code=404, detail="This investigation was interrupted. Start again.")
     return status
+
+
+@app.get("/api/example", response_model=InvestigationResult)
+def get_example() -> InvestigationResult:
+    """The saved example investigation. Works without the model or the web; always labelled Cached."""
+    example = load_example()
+    if example is None:
+        raise HTTPException(status_code=404, detail="The example investigation has not been saved yet.")
+    return example

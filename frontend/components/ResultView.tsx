@@ -24,6 +24,12 @@ export default function ResultView({ result, onReset }: Props) {
 
   return (
     <section aria-live="polite">
+      {result.cached_at && (
+        <p className="cached-banner">
+          Example investigation: a real run saved on {new Date(result.cached_at).toLocaleDateString()}. Every record
+          below is cached, not checked live today.
+        </p>
+      )}
       <div className={`result decision-${result.decision.replace(" ", "-").toLowerCase()}`}>
         <div className="decision">{result.decision}</div>
         <div className="severity">{result.severity}</div>
