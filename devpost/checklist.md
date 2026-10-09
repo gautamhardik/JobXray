@@ -113,28 +113,28 @@ Build mode: fast (switched from learn after slice 4 — the learner asked the ag
 
 <!-- Early feedback at the boundary after slice 3, when the kernel decision works end to end. Final kick-the-tires after slice 10. -->
 
-- [ ] Early usable behavior explored: after slice 3 (paste a fee message, paste a no-fee message, judge the decisions and evidence)
-- [ ] Final kick-the-tires exploration and feedback completed (after slice 10)
+- [x] Early usable behavior explored: after slice 3 — the learner chose to have the agent run the checks instead (7 composite scam messages, then fee and no-fee runs); learner feedback at this point was about scope (add link and screenshot input) and design, both acted on
+- [x] Final kick-the-tires exploration and feedback completed (after slice 10) — learner tried the app and reported "done its good"; earlier hands-on feedback (no design, no motion) was resolved before this
 
 ## Final Review
 
 <!-- Add agreed revision tasks as unchecked boxes here. -->
 
-- [ ] Final review complete — feedback resolved and learner confirms ready to ship
+- [x] Final review complete — feedback resolved and learner confirms ready to ship (no further changes requested; known limits listed to the learner: JavaScript-only careers pages make PROCEED rare, small companies end Unknown, 40–70 s per run, 50 free requests a day, exposed key to rotate)
 
 ## Code Tour and App Map
 
 <!-- Filled in after final review, during the learning wrap-up. -->
 
-- [ ] Learning activity complete — guided route, focused alternative, prior practice connected, or brief recap
-- [ ] Optional edit and transfer reflection addressed — offered/declined/already covered/not applicable as appropriate
-- [ ] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
+- [x] Learning activity complete — prior practice connected (focused alternative)
+- [x] Optional edit and transfer reflection addressed — edit not applicable (familiar plan-first learner, practice came from a real bug); transfer question offered
+- [x] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
 
-Activity and evidence:
-Route and stops:
-Edit outcome:
-Reflection:
-Activity mode:
+Activity and evidence: connected the learner's goal (how an agent decides a search proved or disproved a claim) to the live no-fee misread: the model mislabelled an observation, the separate code rules made the faulty input easy to pinpoint, fixed by `backend/app/evidence/no_fee.py` and `test_no_fee_statement_is_never_a_payment_request`.
+Route and stops: reference route only (not toured): `extract.py` `check_quotes` → `status.py` `opportunity_status` / `decide` → `pipeline.py` `run_investigation` / `check_official_sources`.
+Edit outcome: not applicable.
+Reflection: offered (one optional question).
+Activity mode: prior practice connected; map checked in the browser via its DOM (no scripts, no external resources, no overflow) — screenshot not possible because the pane was hidden.
 
 ## Revisions
 
