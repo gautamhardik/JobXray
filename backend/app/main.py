@@ -45,6 +45,8 @@ class InvestigationRequest(BaseModel):
         given = [v for v in (self.text, self.url, self.image) if v is not None and v.strip()]
         if self.images:
             given.append("images")
+        if self.screenshots() and self.text and self.text.strip() and not (self.url and self.url.strip()):
+            given.remove(self.text)  # text typed alongside screenshots is read with them
         if len(given) != 1:
             raise ValueError("Paste the recruiter or job messages, a link to the job posting, or a screenshot before investigating.")
         return self
@@ -70,7 +72,9 @@ def explain(error: Exception) -> str:
 def start_investigation(request: InvestigationRequest) -> Started:
     if request.screenshots():
         progress = Progress("image")
-        job_id = jobs.start(progress, lambda p: run_from_image(request.screenshots(), progress=p), explain)
+        job_id = jobs.start(
+            progress, lambda p: run_from_image(request.screenshots(), progress=p, added_text=request.text), explain
+        )
     elif request.url:
         progress = Progress("url")
         job_id = jobs.start(progress, lambda p: run_from_link(request.url or "", progress=p), explain)

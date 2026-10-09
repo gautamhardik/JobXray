@@ -241,3 +241,82 @@ def test_an_empty_answer_on_a_job_post_is_retried_not_called_a_non_offer():
     assert result.company == "Nexora Technologies"
     assert result.decision == "PROCEED"
     assert client.max_calls == 5  # the retry does not eat the self-challenge's call
+
+
+# Screenshot plus typed text
+
+
+def test_text_typed_alongside_screenshots_is_read_with_them():
+    from app.investigation.pipeline import run_from_image
+    from tests.test_image_input import data_url
+
+    shot = "Hi, this is Rahul from the HR team at Nexora Technologies.\nYou have been shortlisted for our Business Analyst Internship.\n"
+    typed = "He later wrote: share the OTP you receive on your phone."
+    client = ScriptedClient(
+        _extraction(_claim("sensitive_request", "OTP", "share the OTP you receive on your phone")),
+        NEXORA, ROLE_LISTED, transcription=shot, max_calls=5,
+    )
+    result = run_from_image([data_url()], client, saved_scraper(OFFICIAL), added_text=typed)
+    assert result.decision == "STOP"
+    otp = next(r for r in result.evidence if r.claim_id == "credentials")
+    assert otp.observation == "Stated in the text you added."
+    company = next(r for r in result.evidence if r.claim_id == "company")
+    assert company.observation == "Stated in your screenshot (as transcribed)."
+    assert result.source.transcription == shot  # the typed text is not shown as transcribed
+
+
+def test_api_takes_text_with_screenshots_but_not_with_a_link(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.main import app, jobs
+    from tests.test_image_input import data_url
+
+    seen = {}
+
+    def fake_run(screenshots, progress=None, added_text=None):
+        seen["added_text"] = added_text
+        raise InputUnreadable("stop here")  # no real model call
+
+    monkeypatch.setattr("app.main.run_from_image", fake_run)
+    monkeypatch.setattr(jobs, "run_inline", True)
+    client = TestClient(app)
+    assert client.post("/api/investigations", json={"images": [data_url()], "text": "extra context here"}).status_code == 202
+    assert seen["added_text"] == "extra context here"
+    assert client.post("/api/investigations", json={"images": [data_url()], "url": "https://example.org/x"}).status_code == 422
+
+
+# Task scams
+
+
+def test_paid_likes_with_no_verified_role_is_stop_before_any_fee():
+    nothing_official = {}
+    text = "Part-time job from Nexora Technologies: earn Rs 150 per like on YouTube videos, Rs 3000 daily.\n"
+    extraction = Extraction(
+        company="Nexora Technologies", role=None,
+        claims=[_claim("company", "Nexora Technologies"), _claim("task_scheme", "Rs 150 per like", "earn Rs 150 per like on YouTube videos")],
+        funnel_stages=[],
+    )
+    result = _run(text, extraction, routes=nothing_official)
+    assert result.decision == "STOP"
+    assert "known scam pattern" in result.rule
+    assert result.evidence[0].id in result.top_evidence or any(r.claim_id == "task_scheme" for r in result.evidence)
+
+
+def test_a_mislabelled_task_claim_does_not_count():
+    text = BASE + "The internship includes market research tasks for clients.\n"
+    result = _run(text, _extraction(_claim("task_scheme", "market research", "market research")))
+    assert result.decision == "PROCEED"
+
+
+# A company with no website of its own
+
+
+def test_unknown_company_gets_steps_to_check_it_yourself():
+    from app.evidence.status import NO_SITE_NEXT_STEP
+
+    nothing = Extraction(company="Zentrix Softlabs", role="Web Intern", claims=[_claim("company", "Zentrix Softlabs"), _claim("role", "Web Intern")], funnel_stages=[])
+    client = ScriptedClient(nothing, PlanProposal(official_domain=None, questions=[]))
+    result = run_investigation("Zentrix Softlabs is hiring a Web Intern, apply now.", client, saved_scraper({}))
+    assert result.decision == "VERIFY FIRST"
+    assert result.next_step == NO_SITE_NEXT_STEP
+    assert "mca.gov.in" in result.next_step

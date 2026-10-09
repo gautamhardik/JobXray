@@ -92,7 +92,7 @@ export default function PasteBox({
   const [imageError, setImageError] = useState<string | null>(null);
   const over = value.length > MAX_INPUT_CHARS;
   const canSubmit =
-    (images.length > 0 || (value.trim().length > 0 && !over)) && !busy;
+    (images.length > 0 || value.trim().length > 0) && !over && !busy;
 
   async function takeFiles(files: File[]): Promise<boolean> {
     const pictures = files.filter((f) => f.type.startsWith("image/"));
@@ -128,7 +128,7 @@ export default function PasteBox({
     return true;
   }
 
-  // With screenshots attached the text box is hidden, so the page takes the next paste.
+  // With screenshots attached the main box is hidden, so the page takes the next pasted image.
   useEffect(() => {
     if (images.length === 0) return;
     const onPaste = (event: ClipboardEvent) => {
@@ -187,6 +187,13 @@ export default function PasteBox({
               {MAX_SCREENSHOTS}).
             </p>
           )}
+          <textarea
+            className="added-text"
+            aria-label="Other messages you received (optional)"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder="Optional: paste any other messages you received with it"
+          />
         </div>
       ) : (
         <div className={value.trim() ? "input-frame has-text" : "input-frame"}>

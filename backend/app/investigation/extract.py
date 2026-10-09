@@ -24,6 +24,7 @@ ClaimKind = Literal[
     "fee",
     "application_link",
     "sensitive_request",
+    "task_scheme",
     "posted_date",
     "deadline",
     "eligible_batch",
@@ -87,7 +88,7 @@ class CheckedExtraction(BaseModel):
 
     def looks_like_an_offer(self) -> bool:
         """Anything at all that a job or internship offer would contain."""
-        offer_kinds = {"company", "role", "stipend", "fee", "application_link", "sensitive_request"}
+        offer_kinds = {"company", "role", "stipend", "fee", "application_link", "sensitive_request", "task_scheme"}
         return bool(self.funnel_stages) or any(c.kind in offer_kinds for c in self.claims)
 
 

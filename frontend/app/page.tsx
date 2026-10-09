@@ -41,7 +41,11 @@ export default function Home() {
       const link = asLink(text);
       setRunningId(
         await startInvestigation(
-          images.length > 0 ? { images } : link ? { url: link } : { text },
+          images.length > 0
+            ? { images, ...(text.trim() ? { text } : {}) }
+            : link
+              ? { url: link }
+              : { text },
         ),
       );
     } catch (err) {

@@ -64,6 +64,11 @@ class DecisionResult(BaseModel):
     rule: str
 
 
+NO_SITE_NEXT_STEP = (
+    "JobXray couldn't find this company's official website. Find it yourself, not from the message: "
+    "look up the company's LinkedIn page and, in India, the MCA company register (mca.gov.in), and ask "
+    "for an offer letter from a company email address before you pay or share anything."
+)
 OUTDATED_NEXT_STEP = (
     "This post may be outdated. Check the company's official careers page to confirm the opening is "
     "still there before you apply or share anything."
@@ -77,15 +82,21 @@ def decide(
     credentials_requested: bool = False,
     cautions: list[str] | None = None,
     outdated: bool = False,
+    task_scheme: bool = False,
+    no_official_site: bool = False,
 ) -> DecisionResult:
     """Turn evidence statuses into Proceed, Verify First, or Stop.
 
     cautions are plain sentences (an outdated post, a personal email, a form link,
     documents asked for); any one of them holds back a Proceed but never causes a Stop.
     """
-    cautions = cautions or []
+    cautions = list(cautions or [])
+    if task_scheme and opportunity == "verified":
+        cautions.append("The work is paid simple online tasks (likes, ratings, reviews).")
     if credentials_requested:
         decision, rule = "STOP", "A one-time password, PIN, card details or a password is requested; no genuine hiring process needs these."
+    elif task_scheme and opportunity != "verified":
+        decision, rule = "STOP", "Being paid for simple online tasks (likes, ratings, reviews) is a known scam pattern, and the opportunity is not verified by an official source."
     elif direct_contradiction_on_payment_or_identity:
         decision, rule = "STOP", "An official source directly contradicts a payment or identity claim."
     elif payment_requested and opportunity != "verified":
@@ -98,12 +109,16 @@ def decide(
         decision, rule = "VERIFY FIRST", "The opportunity could not be confirmed by an official source."
     if decision != "STOP" and cautions:
         rule = f"{rule} {' '.join(cautions)}"
-    next_step = OUTDATED_NEXT_STEP if decision == "VERIFY FIRST" and outdated else NEXT_STEP[decision]
+    next_step = NEXT_STEP[decision]
+    if decision == "VERIFY FIRST" and outdated:
+        next_step = OUTDATED_NEXT_STEP
+    elif decision == "VERIFY FIRST" and no_official_site:
+        next_step = NO_SITE_NEXT_STEP
     return DecisionResult(decision=decision, severity=SEVERITY[decision], next_step=next_step, rule=rule)
 
 
 def _weight(record: EvidenceRecord) -> int:
-    if record.status == "contradiction" or record.claim_id == "credentials":
+    if record.status == "contradiction" or record.claim_id in ("credentials", "task_scheme"):
         return 0
     if record.claim_id in ("payment", "freshness"):
         return 1

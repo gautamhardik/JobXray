@@ -14,7 +14,9 @@ from pydantic import BaseModel
 from app.evidence.channels import check_channels
 from app.evidence.freshness import check_freshness
 from app.evidence.ledger import EvidenceRecord, Ledger, Reliability, SourceType, Status
+from app.evidence.quotes import quote_in_text
 from app.evidence.sensitive import asks_for_credentials
+from app.evidence.tasks import is_task_scheme
 from app.evidence.status import OfficialCheck, decide, opportunity_status, top_evidence
 from app.investigation.extract import FUNNEL_ORDER, STAGE_LABELS, CheckedExtraction, extract
 from app.investigation.observe import inspectable, observe
@@ -35,6 +37,7 @@ CLAIM_LABELS = {
     "fee": "Payment requested",
     "application_link": "Application link",
     "sensitive_request": "Sensitive information requested",
+    "task_scheme": "Paid online tasks",
     "posted_date": "Posted",
     "deadline": "Application deadline",
     "eligible_batch": "Eligible batch",
@@ -60,6 +63,7 @@ class Origin(BaseModel):
     source_url: str | None = None
     reliability: Reliability = "user-provided"
     transcription: str | None = None
+    added_text: str | None = None  # text the person typed alongside their screenshots
 
 
 ORIGIN_OBSERVATION = {
@@ -129,14 +133,18 @@ def run_from_image(
     client: LLMClient | None = None,
     scraper: Scraper | None = None,
     progress: Progress | None = None,
+    added_text: str | None = None,
 ) -> InvestigationResult:
-    """Screenshot input (up to three): one transcription call (budget 5 instead of 4), then investigate the transcription."""
+    """Screenshot input (up to three): one transcription call (budget 5 instead of 4), then investigate the
+    transcription together with any text the person typed alongside."""
     client = client or LLMClient(max_calls=MAX_MODEL_CALLS_IMAGE)
     progress = progress or NoProgress("image")
     progress.start("read")
-    text = transcribe(data_url, client)
+    transcription = transcribe(data_url, client)
     progress.done("read")
-    origin = Origin(source_type="screenshot", transcription=text)
+    added = (added_text or "").strip() or None
+    text = f"{transcription}\n\n{added}" if added else transcription
+    origin = Origin(source_type="screenshot", transcription=transcription, added_text=added)
     return run_investigation(text, client, scraper, origin, progress)
 
 
@@ -184,6 +192,8 @@ def run_investigation(
         credentials_requested=signals.credentials,
         cautions=signals.cautions,
         outdated=signals.outdated,
+        task_scheme=signals.task_scheme,
+        no_official_site=not official.domain_established,
     )
 
     progress.start("challenge")
@@ -203,6 +213,8 @@ def run_investigation(
         credentials_requested=signals.credentials,
         cautions=signals.cautions,
         outdated=signals.outdated,
+        task_scheme=signals.task_scheme,
+        no_official_site=not official.domain_established,
     )
     challenge.changed = result.decision != first.decision
     challenge.note = (
@@ -425,6 +437,7 @@ class Signals(BaseModel):
     """Findings beyond the official-site check that the rules weigh."""
 
     credentials: bool = False
+    task_scheme: bool = False
     impersonation: bool = False
     outdated: bool = False
     cautions: list[str] = []
@@ -437,6 +450,8 @@ def record_signals(ledger: Ledger, extraction: CheckedExtraction, text: str, ori
     for record in ledger.records:
         if record.claim_id == "credentials":
             signals.credentials = True
+        elif record.claim_id == "task_scheme":
+            signals.task_scheme = True
         elif record.claim_id == "sensitive_request" and "Sensitive documents are requested." not in signals.cautions:
             signals.cautions.append("Sensitive documents are requested.")
 
@@ -496,6 +511,9 @@ def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction, origin: O
             claim_id = f"other-{other_count}"
         elif claim.kind == "sensitive_request":
             claim_id = "credentials" if asks_for_credentials(f"{claim.value} {claim.excerpt}") else "sensitive_request"
+        elif claim.kind == "task_scheme" and not is_task_scheme(f"{claim.value} {claim.excerpt}"):
+            other_count += 1
+            claim_id = f"other-{other_count}"
         else:
             claim_id = claim.kind
         ledger.add(
@@ -505,7 +523,7 @@ def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction, origin: O
             source_url=origin.source_url,
             excerpt=claim.excerpt,
             reliability=origin.reliability,
-            observation=ORIGIN_OBSERVATION[origin.source_type],
+            observation=observed_in(origin, claim.excerpt),
             status="fact",
         )
 
@@ -521,10 +539,17 @@ def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction, origin: O
                 source_url=origin.source_url,
                 excerpt=stage.excerpt,
                 reliability=origin.reliability,
-                observation=ORIGIN_OBSERVATION[origin.source_type],
+                observation=observed_in(origin, stage.excerpt),
                 status="fact",
             )
     return payment_requested
+
+
+def observed_in(origin: Origin, excerpt: str) -> str:
+    """Where a quote came from: the screenshot, or the text typed alongside it."""
+    if origin.source_type == "screenshot" and origin.added_text and not quote_in_text(excerpt, origin.transcription or ""):
+        return "Stated in the text you added."
+    return ORIGIN_OBSERVATION[origin.source_type]
 
 
 def opportunity_claim(extraction: CheckedExtraction) -> str:

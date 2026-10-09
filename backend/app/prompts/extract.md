@@ -13,6 +13,7 @@ Extract:
    - `fee`: any money the candidate is asked to pay (registration, training, certificate, deposit, onboarding). A statement that no fee is charged (for example "we never charge candidates") is not a fee; record it as `other`.
    - `application_link`: a link or address where the candidate is told to apply or register
    - `sensitive_request`: the candidate is asked to share sensitive details: an OTP or verification code, a PIN, card or bank details, a password, Aadhaar, PAN, passport, or remote access to their device. A warning not to share these is not a request; record it as `other`.
+   - `task_scheme`: the candidate is paid for simple online tasks, such as liking or subscribing to videos, following accounts, rating or reviewing hotels, products or apps, or "prepaid" or "merchant" tasks.
    - `posted_date`: when the post or message was published. Give `value` as an ISO date (YYYY-MM-DD) if the text states a full date; otherwise copy the age as written (for example "3 weeks ago", "2mo", "3y").
    - `deadline`: the last date to apply or register. Give `value` as an ISO date (YYYY-MM-DD) if the text states the year; otherwise copy it as written.
    - `eligible_batch`: graduating years or batches the opportunity is open to. Give `value` as the years only, comma-separated (for example "2025, 2026").

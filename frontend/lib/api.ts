@@ -48,7 +48,7 @@ export type Challenge = {
   note: string;
 };
 
-export type InvestigationInput = { text: string } | { url: string } | { images: string[] };
+export type InvestigationInput = { text: string } | { url: string } | { images: string[]; text?: string };
 
 export type InvestigationResult = {
   decision: Decision;

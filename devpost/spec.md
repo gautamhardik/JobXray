@@ -120,7 +120,7 @@ PRD ref: `prd.md > Evidence`.
 
 ### Backend
 
-**`app/main.py` — HTTP routes.** `POST /api/investigations` (start; body has exactly one of `text`, `url`, or `images` (up to 3 screenshots; a single `image` is still accepted); returns 202 and an id), `GET /api/investigations/{id}` (step list, then the result or a plain error; 404 if unknown), `GET /api/example` (the saved example, always labelled Cached). CORS allows the frontend origin.
+**`app/main.py` — HTTP routes.** `POST /api/investigations` (start; body has exactly one of `text`, `url`, or `images` (up to 3 screenshots, optionally with `text` typed alongside; a single `image` is still accepted); returns 202 and an id), `GET /api/investigations/{id}` (step list, then the result or a plain error; 404 if unknown), `GET /api/example` (the saved example, always labelled Cached). CORS allows the frontend origin.
 
 **`app/config.py` — limits and settings.** The numbers, in one place: `MAX_INPUT_CHARS = 10_000`, `MAX_FETCHES = 8`, `MAX_MODEL_CALLS = 4`, `MAX_MODEL_CALLS_IMAGE = 5`, `MAX_IMAGE_BYTES = 4 MB`, `CHALLENGE_ROUNDS = 1`. Also reads `VISION_MODEL` (default `dots-studio/dots-3-note-preview:free`). Reads `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` from the environment.
 
@@ -144,7 +144,7 @@ PRD ref: `prd.md > Evidence`.
 
 **`app/evidence/status.py` — the status and decision rules.** Plain Python, no model. Turns records into statuses and statuses into the decision. Pure functions, so they can be tested without any network or API call. Rules are listed under Decisions and Open Issues.
 
-**`app/evidence/freshness.py`, `channels.py`, `sensitive.py` — signals beyond the official-site check.** Plain Python, no model. `freshness.py` reads the post's age, deadline, eligible batch, and LinkedIn's "No longer accepting applications" to flag outdated or closed posts. `channels.py` compares recruiter emails and application links with the official domain (personal webmail, forms and link shorteners, look-alike domains). `sensitive.py` separates requests for secrets (OTP, PIN, card details, passwords) from document requests (Aadhaar, PAN, bank details).
+**`app/evidence/freshness.py`, `channels.py`, `sensitive.py` — signals beyond the official-site check.** Plain Python, no model. `freshness.py` reads the post's age, deadline, eligible batch, and LinkedIn's "No longer accepting applications" to flag outdated or closed posts. `channels.py` compares recruiter emails and application links with the official domain (personal webmail, forms and link shorteners, look-alike domains). `sensitive.py` separates requests for secrets (OTP, PIN, card details, passwords) from document requests (Aadhaar, PAN, bank details). `tasks.py` confirms a task-scheme claim (paid likes, ratings, reviews).
 PRD refs: `prd.md > Evidence`, `prd.md > Result and recommendation`, `prd.md > Product Decisions`.
 
 **`app/web/scraper.py` — Scrapling wrapper.** Fetches a URL, extracts the readable text, records the URL and time, and returns a failure reason on timeout, block, or error. Counts fetches against the budget.
@@ -289,6 +289,8 @@ JobXray/
   - **STOP · Critical concern:** a payment request is a Fact, and the opportunity is not Verified.
   - **STOP · Critical concern:** a direct Contradiction with an official source on a payment or identity claim, including a recruiter email or link on a look-alike of the official domain.
   - **STOP · Critical concern:** the message asks for an OTP, PIN, card details, or a password.
+  - **STOP · Critical concern:** the work is paid simple online tasks (likes, ratings, reviews, prepaid tasks) and the opportunity is not Verified.
+  - **VERIFY FIRST when no official site can be established** comes with steps to check the company yourself: its LinkedIn page, the MCA register, and an offer letter from a company email.
   - **VERIFY FIRST · Significant uncertainty:** the opportunity is Unverified or Unknown, with no payment request and no direct contradiction; also the default when the official site is unreachable.
   - **PROCEED · Low concern:** the opportunity is Verified, with no direct contradiction, no payment request, and no caution.
   - **Cautions hold back a Proceed but never cause a Stop:** the post looks outdated or closed (older than 30 days, a passed deadline, a graduated batch, or "No longer accepting applications"), the recruiter writes from personal webmail or another domain, the application goes through a form or link shortener, or identity or bank documents are requested. An outdated post gets its own next step: confirm the opening is still on the official careers page.

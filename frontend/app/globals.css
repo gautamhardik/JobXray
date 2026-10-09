@@ -270,6 +270,11 @@ button.link {
   border-radius: 6px;
 }
 
+.image-preview .added-text {
+  min-height: 88px;
+  justify-self: stretch;
+}
+
 .image-strip {
   display: flex;
   flex-wrap: wrap;

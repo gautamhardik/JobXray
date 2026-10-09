@@ -97,7 +97,7 @@ def test_image_budget_is_five_and_text_budget_is_four(monkeypatch):
 
 def test_api_accepts_exactly_one_of_text_url_image():
     client = TestClient(app)
-    response = client.post("/api/investigations", json={"text": "hi", "image": data_url()})
+    response = client.post("/api/investigations", json={"url": "https://example.org/job", "image": data_url()})
     assert response.status_code == 422
     jobs.run_inline = True
     try:
