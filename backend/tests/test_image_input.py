@@ -107,3 +107,34 @@ def test_api_accepts_exactly_one_of_text_url_image():
         jobs.run_inline = False
     assert status["status"] == "failed"
     assert "PNG, JPEG, or WebP" in status["error"]
+
+
+class _RecordingClient(ScriptedClient):
+    def read_image(self, system, instruction, image_data_url, max_tokens=4000):
+        self.sent = image_data_url
+        self.instruction = instruction
+        return super().read_image(system, instruction, image_data_url, max_tokens)
+
+
+def test_several_screenshots_are_read_together_in_one_call():
+    client = _RecordingClient(_extraction(), transcription=FEE_TEXT, max_calls=5)
+    shots = [data_url(), data_url(PNG + b"\x01"), data_url(PNG + b"\x02")]
+    result = run_from_image(shots, client, saved_scraper({}))
+    assert client.sent == shots
+    assert "3 screenshots, in order" in client.instruction
+    assert result.decision == "STOP"
+    assert client.calls <= 5
+
+
+def test_more_than_three_screenshots_are_refused():
+    with pytest.raises(InputUnreadable, match="at most 3"):
+        run_from_image([data_url()] * 4, ScriptedClient(_extraction(), max_calls=5), saved_scraper({}))
+    response = TestClient(app).post("/api/investigations", json={"images": [data_url()] * 4})
+    assert response.status_code == 422
+
+
+def test_one_bad_screenshot_among_several_is_named_before_any_call():
+    client = ScriptedClient(_extraction(), transcription=FEE_TEXT, max_calls=5)
+    with pytest.raises(InputUnreadable, match="not a valid image"):
+        run_from_image([data_url(), data_url(b"GIF89a" + b"\x00" * 10)], client, saved_scraper({}))
+    assert client.calls == 0

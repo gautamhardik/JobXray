@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from app.investigation.extract import CheckedExtraction
 from app.llm.llm_client import LLMClient
-from app.web.scraper import FetchResult, Scraper
+from app.web.scraper import FetchBudgetExceeded, FetchResult, Scraper
 
 PROMPT = (Path(__file__).parent.parent / "prompts" / "plan.md").read_text(encoding="utf-8")
 
@@ -52,6 +52,7 @@ class DomainCheck(BaseModel):
     established: bool
     signals: list[DomainSignal]
     homepage: FetchResult | None = None
+    probed_careers: list[FetchResult] = []  # careers pages found at a usual address, already fetched
     reason: str
 
 
@@ -135,7 +136,9 @@ def check_domain(domain: str | None, company: str, scraper: Scraper) -> DomainCh
     signals.append(DomainSignal(name="Links stay on the same site", passed=share >= 0.5, detail=f"{len(same_site)} of {len(links)} links stay on {base}."))
 
     careers = career_links(homepage, domain)
-    signals.append(DomainSignal(name="Careers or jobs section", passed=bool(careers), detail=careers[0] if careers else "No careers or jobs link found on the homepage."))
+    probed = [] if careers else probe_careers(domain, scraper)
+    found = careers[0] if careers else (probed[0].url if probed else None)
+    signals.append(DomainSignal(name="Careers or jobs section", passed=bool(found), detail=found or "No careers or jobs page found on the site."))
 
     about = any(ABOUT_WORDS.search(f"{l.text} {l.url}") for l in same_site)
     signals.append(DomainSignal(name="About or contact information", passed=about, detail="Found an about or contact link." if about else "No about or contact link found."))
@@ -147,7 +150,20 @@ def check_domain(domain: str | None, company: str, scraper: Scraper) -> DomainCh
         if established
         else "Not enough first-party identity signals agree, so the official site is not established."
     )
-    return DomainCheck(domain=domain, established=established, signals=signals, homepage=homepage, reason=reason)
+    return DomainCheck(domain=domain, established=established, signals=signals, homepage=homepage, probed_careers=probed, reason=reason)
+
+
+def probe_careers(domain: str, scraper: Scraper) -> list[FetchResult]:
+    """Big companies often keep jobs off the homepage (careers.google.com). Try the usual addresses."""
+    base = registrable(domain)
+    for url in (f"https://careers.{base}/", f"https://{domain}/careers"):
+        try:
+            page = scraper.fetch(url)
+        except FetchBudgetExceeded:
+            return []
+        if page.ok and _same_site(page.url, domain) and CAREER_WORDS.search(page.url):
+            return [page]
+    return []
 
 
 def normalize_url(url: str) -> str:

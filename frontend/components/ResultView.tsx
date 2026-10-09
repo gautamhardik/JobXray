@@ -39,6 +39,11 @@ export default function ResultView({ result, onReset }: Props) {
             {result.challenge.note} First assessment: {result.challenge.first_decision}.
           </p>
         )}
+        {(result.notes ?? []).map((note) => (
+          <p className="revision-note" key={note}>
+            {note}
+          </p>
+        ))}
         {result.source.source_type === "linked_page" && result.source.source_url && (
           <p className="muted small">
             Read from:{" "}

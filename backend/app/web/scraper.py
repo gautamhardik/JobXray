@@ -25,6 +25,7 @@ from app.config import MAX_FETCHES
 PAGE_TEXT_LIMIT = 20_000
 TIMEOUT_SECONDS = 20
 MAX_REDIRECTS = 4
+WEB_PAGE_TYPES = ("html", "text/plain", "xml")
 
 
 class FetchBudgetExceeded(Exception):
@@ -129,6 +130,24 @@ def _result(requested: str, url: str, response: Any) -> FetchResult:
             failure=f"The site refused or blocked the request (HTTP {status}).",
         )
 
+    content_type = str((getattr(response, "headers", {}) or {}).get("content-type") or "").lower()
+    if content_type and not any(t in content_type for t in WEB_PAGE_TYPES):
+        kind = "a PDF" if "pdf" in content_type else "an image" if content_type.startswith("image/") else "a file"
+        return FetchResult(
+            requested_url=requested,
+            url=url,
+            ok=False,
+            status=status,
+            failure=f"The link opens {kind}, not a web page.",
+        )
+    try:
+        return _parsed(requested, url, response)
+    except (UnicodeDecodeError, ValueError):  # bytes that are not really HTML
+        return FetchResult(requested_url=requested, url=url, ok=False, status=status, failure="The page's content could not be read as text.")
+
+
+def _parsed(requested: str, url: str, response: Any) -> FetchResult:
+    status = response.status
     titles = response.css("title")
     links: list[PageLink] = []
     seen: set[str] = set()

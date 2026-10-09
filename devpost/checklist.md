@@ -138,6 +138,25 @@ Activity mode: prior practice connected; map checked in the browser via its DOM 
 
 ## Revisions
 
+- Input audit, at the learner's request ("find every condition a user can put in that the app isn't ready for, then fix it"). Fixed:
+  - A PDF or image link crashed the scraper (`UnicodeDecodeError`), including when an official careers link was a PDF. Now refused with a plain reason.
+  - Outdated or closed posts (learner decision: VERIFY FIRST with its own advice, never STOP for age alone; stale after 30 days). Signs used: post age, passed deadline, graduated batch, and "No longer accepting applications".
+  - OTP, PIN, card or password requests now mean STOP. Aadhaar, PAN or bank-detail requests hold back a Proceed. "We never ask for your OTP" is not a request.
+  - Recruiter emails and links are compared with the official domain: personal webmail, forms and shorteners, and other domains hold back a Proceed; look-alike domains such as `nexora-careers.in` mean STOP.
+  - Text that isn't a job offer gets a plain message, and pastes under 3 words are refused before any model call. An empty model answer on text with job words is retried once outside the budget, after a live run showed the free model sometimes returns nothing.
+  - A post that lists several offers says which one was checked.
+  - The careers page is found at `careers.<domain>` or `<domain>/careers` when the homepage has no link (google.com was Unknown before; now established).
+  - Up to 3 screenshots are read in one vision call. Other image types are converted, and images over 4 MB are shrunk instead of refused.
+  - Links without `https://`, and short share messages around a job-board link, are treated as links.
+  - Dropping a PDF shows a message instead of the browser opening the file.
+- Verified: 137 tests pass; frontend type-check is clean. Live checks:
+  - Two chat screenshots with a fee and an OTP request ended STOP, with the OTP first.
+  - The 3-year-old LinkedIn post ended VERIFY FIRST with the outdated advice.
+  - A Hinglish recruiter message was extracted with every quote intact.
+  - "hello there", a 34.5 MB image and a dropped PDF behaved as designed in the browser.
+- Known limits kept: a screenshot plus typed text sends only the screenshot; task-based "earn per like" scams are caught only when they ask for money; small companies without a website stay Unknown.
+- The frontend dev server was serving a stale mixed build (`main-app.js` 404, page not interactive). Fixed by restarting it with a clean `.next`.
+
 - LinkedIn links now read, at the learner's request: the old login-wall rule rejected public LinkedIn job pages whose full description sits under the sign-in boxes. Job links go through LinkedIn's public `jobs-guest` view, post links (`/posts/…`, `/feed/update/urn:li:…`) through the `embed` view, `lnkd.in` short links are followed to their target, and sign-in boxes are stripped before the readability check. When nothing readable is left, the message asks for a screenshot or the pasted text. Verified: 98 tests pass; live, two LinkedIn internship listings and two LinkedIn posts read in one fetch each; a removed job gives the screenshot message in the app; a full live run on a LinkedIn post finished VERIFY FIRST. Still not covered: how old the post is (a 3-year-old post was treated like a new one).
 
 - Before publishing, at the learner's request: removed the personal story from `scope.md` ("Why This Matters to the Learner") and made "Who It's For" describe students generally rather than the learner's own experience.

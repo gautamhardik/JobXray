@@ -17,7 +17,7 @@ import {
 
 export default function Home() {
   const [text, setText] = useState("");
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<InvestigationResult | null>(null);
@@ -41,7 +41,7 @@ export default function Home() {
       const link = asLink(text);
       setRunningId(
         await startInvestigation(
-          image ? { image } : link ? { url: link } : { text },
+          images.length > 0 ? { images } : link ? { url: link } : { text },
         ),
       );
     } catch (err) {
@@ -89,7 +89,7 @@ export default function Home() {
             onReset={() => {
               setResult(null);
               setText("");
-              setImage(null);
+              setImages([]);
             }}
           />
         ) : (
@@ -97,8 +97,8 @@ export default function Home() {
             <PasteBox
               value={text}
               onChange={setText}
-              image={image}
-              onImage={setImage}
+              images={images}
+              onImages={setImages}
               onSubmit={investigate}
               busy={busy}
             />

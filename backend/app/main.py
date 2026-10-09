@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 
-from app.config import FRONTEND_ORIGINS, MAX_INPUT_CHARS
+from app.config import FRONTEND_ORIGINS, MAX_INPUT_CHARS, MAX_SCREENSHOTS
 from app.input import InputUnreadable
 from app.investigation.pipeline import InvestigationResult, run_from_image, run_from_link, run_investigation
 from app.investigation.progress import Progress
@@ -34,13 +34,23 @@ class InvestigationRequest(BaseModel):
     text: str | None = Field(default=None, max_length=MAX_INPUT_CHARS)
     url: str | None = Field(default=None, max_length=2_000)
     image: str | None = Field(default=None, max_length=6_000_000)
+    images: list[str] | None = Field(default=None, max_length=MAX_SCREENSHOTS)
 
     @model_validator(mode="after")
     def exactly_one_input(self) -> "InvestigationRequest":
+        if self.images is not None:
+            self.images = [i for i in self.images if i.strip()] or None
+        if self.images and any(len(i) > 6_000_000 for i in self.images):
+            raise ValueError("Each screenshot must be smaller than 4 MB.")
         given = [v for v in (self.text, self.url, self.image) if v is not None and v.strip()]
+        if self.images:
+            given.append("images")
         if len(given) != 1:
             raise ValueError("Paste the recruiter or job messages, a link to the job posting, or a screenshot before investigating.")
         return self
+
+    def screenshots(self) -> list[str]:
+        return self.images or ([self.image] if self.image else [])
 
 
 class Started(BaseModel):
@@ -58,9 +68,9 @@ def explain(error: Exception) -> str:
 
 @app.post("/api/investigations", response_model=Started, status_code=202)
 def start_investigation(request: InvestigationRequest) -> Started:
-    if request.image:
+    if request.screenshots():
         progress = Progress("image")
-        job_id = jobs.start(progress, lambda p: run_from_image(request.image or "", progress=p), explain)
+        job_id = jobs.start(progress, lambda p: run_from_image(request.screenshots(), progress=p), explain)
     elif request.url:
         progress = Progress("url")
         job_id = jobs.start(progress, lambda p: run_from_link(request.url or "", progress=p), explain)

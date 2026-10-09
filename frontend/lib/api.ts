@@ -48,7 +48,7 @@ export type Challenge = {
   note: string;
 };
 
-export type InvestigationInput = { text: string } | { url: string } | { image: string };
+export type InvestigationInput = { text: string } | { url: string } | { images: string[] };
 
 export type InvestigationResult = {
   decision: Decision;
@@ -67,6 +67,7 @@ export type InvestigationResult = {
   source: Origin;
   challenge: Challenge;
   cached_at: string | null;
+  notes?: string[]; // limits of this run, e.g. a post that lists several offers
 };
 
 export type Step = {

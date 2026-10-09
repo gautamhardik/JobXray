@@ -144,3 +144,24 @@ def test_observation_quote_not_on_the_page_is_dropped():
     checked = check_observation_quotes(Observations(observations=[invented]), pages)
     assert checked.observations == []
     assert checked.dropped_quotes == 1
+
+
+def test_careers_kept_off_the_homepage_are_found_at_the_usual_address():
+    scraper = saved_scraper({
+        HOME: "nexora_home_no_careers_link.html",
+        "https://careers.nexora.example/": "nexora_careers_with_role.html",
+    })
+    check = check_domain("nexora.example", "Nexora Technologies", scraper)
+    assert check.established
+    assert [p.url for p in check.probed_careers] == ["https://careers.nexora.example/"]
+
+
+def test_probed_careers_page_is_read_without_fetching_it_again():
+    client = ScriptedClient(_extraction(with_fee=False), NEXORA, Observations(observations=[ROLE_LISTED]))
+    scraper = saved_scraper({
+        HOME: "nexora_home_no_careers_link.html",
+        "https://careers.nexora.example/": "nexora_careers_with_role.html",
+    })
+    result = run_investigation(FEE_TEXT, client, scraper)
+    assert _record(result, "opportunity").status == "verified"
+    assert result.decision == "PROCEED"

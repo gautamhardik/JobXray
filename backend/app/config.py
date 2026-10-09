@@ -14,6 +14,7 @@ MAX_FETCHES = 8
 MAX_MODEL_CALLS = 4
 MAX_MODEL_CALLS_IMAGE = 5  # one extra call to transcribe a screenshot
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
+MAX_SCREENSHOTS = 3  # read together in the same single transcription call
 CHALLENGE_ROUNDS = 1
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")

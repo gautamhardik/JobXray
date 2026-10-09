@@ -50,7 +50,7 @@ def test_cut_off_answer_is_an_error():
 def test_strict_schema_closes_every_object():
     schema = strict_schema(Extraction)
     assert schema["additionalProperties"] is False
-    assert set(schema["required"]) == {"company", "role", "claims", "funnel_stages"}
+    assert set(schema["required"]) == {"company", "role", "claims", "funnel_stages", "several_opportunities"}
     for definition in schema["$defs"].values():
         assert definition["additionalProperties"] is False
 

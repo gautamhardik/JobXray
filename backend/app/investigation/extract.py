@@ -11,12 +11,24 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.evidence.no_fee import is_no_fee_statement
+from app.evidence.sensitive import is_refusal
 from app.evidence.quotes import quote_in_text
 from app.llm.llm_client import LLMClient
 
 PROMPT = (Path(__file__).parent.parent / "prompts" / "extract.md").read_text(encoding="utf-8")
 
-ClaimKind = Literal["company", "role", "stipend", "fee", "application_link", "other"]
+ClaimKind = Literal[
+    "company",
+    "role",
+    "stipend",
+    "fee",
+    "application_link",
+    "sensitive_request",
+    "posted_date",
+    "deadline",
+    "eligible_batch",
+    "other",
+]
 StageName = Literal[
     "opportunity",
     "recruiter_contact",
@@ -62,6 +74,7 @@ class Extraction(BaseModel):
     role: str | None
     claims: list[ExtractedClaim]
     funnel_stages: list[ExtractedStage]
+    several_opportunities: bool = False
 
 
 class CheckedExtraction(BaseModel):
@@ -70,6 +83,12 @@ class CheckedExtraction(BaseModel):
     claims: list[ExtractedClaim]
     funnel_stages: list[ExtractedStage]
     dropped_quotes: int
+    several_opportunities: bool = False
+
+    def looks_like_an_offer(self) -> bool:
+        """Anything at all that a job or internship offer would contain."""
+        offer_kinds = {"company", "role", "stipend", "fee", "application_link", "sensitive_request"}
+        return bool(self.funnel_stages) or any(c.kind in offer_kinds for c in self.claims)
 
 
 def extract(text: str, client: LLMClient) -> CheckedExtraction:
@@ -89,6 +108,10 @@ def check_quotes(raw: Extraction, text: str) -> CheckedExtraction:
         if claim.kind == "fee" and is_no_fee_statement(claim.excerpt):
             claim.kind = "other"
             claim.value = f"No-fee statement: {claim.excerpt}"
+        # "We never ask for your OTP" is a warning, not a request.
+        if claim.kind == "sensitive_request" and is_refusal(claim.excerpt):
+            claim.kind = "other"
+            claim.value = f"Safety statement: {claim.excerpt}"
 
     stages: list[ExtractedStage] = []
     seen: set[str] = set()
@@ -114,4 +137,5 @@ def check_quotes(raw: Extraction, text: str) -> CheckedExtraction:
         claims=claims,
         funnel_stages=stages,
         dropped_quotes=dropped,
+        several_opportunities=raw.several_opportunities,
     )

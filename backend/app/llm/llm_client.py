@@ -57,8 +57,9 @@ class LLMClient:
         })
         return parse_reply(payload, output_format)
 
-    def read_image(self, system: str, instruction: str, image_data_url: str, max_tokens: int = 8000) -> str:
-        """A plain-text reply about one image, from the vision model (screenshot transcription)."""
+    def read_image(self, system: str, instruction: str, image_data_url: str | list[str], max_tokens: int = 8000) -> str:
+        """A plain-text reply about one or more images, from the vision model (screenshot transcription)."""
+        urls = [image_data_url] if isinstance(image_data_url, str) else image_data_url
         payload = self._post({
             "model": VISION_MODEL,
             "max_tokens": max_tokens,
@@ -68,7 +69,7 @@ class LLMClient:
                     "role": "user",
                     "content": [
                         {"type": "text", "text": instruction},
-                        {"type": "image_url", "image_url": {"url": image_data_url}},
+                        *({"type": "image_url", "image_url": {"url": url}} for url in urls),
                     ],
                 },
             ],

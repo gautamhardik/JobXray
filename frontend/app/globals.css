@@ -270,6 +270,26 @@ button.link {
   border-radius: 6px;
 }
 
+.image-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.image-strip figure {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin: 0;
+  min-width: 0;
+}
+
+.image-strip img {
+  max-width: min(100%, 220px);
+  max-height: 260px;
+  object-fit: contain;
+}
+
 /* Progress view: a scanner reading the opportunity. */
 
 .progress {

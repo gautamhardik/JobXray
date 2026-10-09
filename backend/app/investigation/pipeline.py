@@ -6,15 +6,20 @@ comes from the rules in app/evidence/status.py, not from the model.
 See spec.md > Components > Backend > app/investigation/pipeline.py.
 """
 
+import re
 from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.evidence.channels import check_channels
+from app.evidence.freshness import check_freshness
 from app.evidence.ledger import EvidenceRecord, Ledger, Reliability, SourceType, Status
+from app.evidence.sensitive import asks_for_credentials
 from app.evidence.status import OfficialCheck, decide, opportunity_status, top_evidence
 from app.investigation.extract import FUNNEL_ORDER, STAGE_LABELS, CheckedExtraction, extract
 from app.investigation.observe import inspectable, observe
 from app.config import MAX_MODEL_CALLS_IMAGE
+from app.input import InputUnreadable
 from app.input.image import transcribe
 from app.input.link import read_link
 from app.investigation.challenge import CheckedHypothesis, plan_challenge, run_challenge
@@ -29,8 +34,23 @@ CLAIM_LABELS = {
     "stipend": "Stipend or pay",
     "fee": "Payment requested",
     "application_link": "Application link",
+    "sensitive_request": "Sensitive information requested",
+    "posted_date": "Posted",
+    "deadline": "Application deadline",
+    "eligible_batch": "Eligible batch",
     "other": "Claim",
 }
+MIN_WORDS = 3
+JOB_WORDS = re.compile(
+    r"\b(intern(ship)?s?|jobs?|hiring|hire|recruit\w*|vacanc\w*|stipend|salary|ctc|lpa|offer|role|position|"
+    r"career\w*|apply|applicants?|selected|shortlisted|interview|onboarding|hr|batch|placement|opening)\b",
+    re.I,
+)
+NOT_AN_OFFER = (
+    "JobXray didn't find a job or internship offer in this. Paste the recruiter messages or job post you "
+    "received, a link to the post, or a screenshot of it."
+)
+TOO_SHORT = "That's too short to investigate. Paste the full message or job post you received, or its link."
 
 
 class Origin(BaseModel):
@@ -85,6 +105,7 @@ class InvestigationResult(BaseModel):
     source: Origin
     challenge: Challenge
     cached_at: datetime | None = None  # set only on the saved example; never on a live run
+    notes: list[str] = []  # limits of this run the person should know about
 
 
 def run_from_link(
@@ -104,12 +125,12 @@ def run_from_link(
 
 
 def run_from_image(
-    data_url: str,
+    data_url: str | list[str],
     client: LLMClient | None = None,
     scraper: Scraper | None = None,
     progress: Progress | None = None,
 ) -> InvestigationResult:
-    """Screenshot input: one transcription call (budget 5 instead of 4), then investigate the transcription."""
+    """Screenshot input (up to three): one transcription call (budget 5 instead of 4), then investigate the transcription."""
     client = client or LLMClient(max_calls=MAX_MODEL_CALLS_IMAGE)
     progress = progress or NoProgress("image")
     progress.start("read")
@@ -131,10 +152,18 @@ def run_investigation(
     origin = origin or Origin()
     progress = progress or NoProgress()
     if origin.source_type == "pasted_text":
+        if len(text.split()) < MIN_WORDS:
+            raise InputUnreadable(TOO_SHORT)
         progress.done("read")
 
     progress.start("extract")
     extraction = extract(text, client)
+    if not extraction.looks_like_an_offer() and extraction.dropped_quotes == 0:  # nothing found, not just nothing quotable
+        if not JOB_WORDS.search(text):
+            raise InputUnreadable(NOT_AN_OFFER)
+        # Job words but an empty answer: the free model sometimes misses. One retry, outside the budget.
+        client.max_calls += 1
+        extraction = extract(text, client)
     progress.done("extract", f"{extraction.company or 'No company named'} · {extraction.role or 'no role named'}")
     stages = [
         FunnelStage(stage=s.stage, label=STAGE_LABELS[s.stage], excerpt=s.excerpt)
@@ -147,10 +176,14 @@ def run_investigation(
     payment_requested = record_pasted_facts(ledger, extraction, origin)
 
     official = check_official_sources(extraction, client, scraper, ledger, progress)
+    signals = record_signals(ledger, extraction, text, origin, official)
     first = decide(
         payment_requested=payment_requested,
         opportunity=official.status,
-        direct_contradiction_on_payment_or_identity=official.policy_contradiction,
+        direct_contradiction_on_payment_or_identity=official.policy_contradiction or signals.impersonation,
+        credentials_requested=signals.credentials,
+        cautions=signals.cautions,
+        outdated=signals.outdated,
     )
 
     progress.start("challenge")
@@ -164,9 +197,12 @@ def run_investigation(
     result = decide(
         payment_requested=payment_requested,
         opportunity=opportunity,
-        direct_contradiction_on_payment_or_identity=official.policy_contradiction or any(
+        direct_contradiction_on_payment_or_identity=official.policy_contradiction or signals.impersonation or any(
             r.claim_id == "recruitment_policy" and r.status == "contradiction" for r in ledger.records
         ),
+        credentials_requested=signals.credentials,
+        cautions=signals.cautions,
+        outdated=signals.outdated,
     )
     challenge.changed = result.decision != first.decision
     challenge.note = (
@@ -193,6 +229,7 @@ def run_investigation(
         fetches=scraper.fetches,
         source=origin,
         challenge=challenge,
+        notes=signals.notes,
     )
 
 
@@ -223,6 +260,7 @@ class OfficialOutcome(BaseModel):
     policy_contradiction: bool = False
     dropped_quotes: int = 0
     domain_established: bool = False
+    domain: str | None = None  # set only when the official domain is established
     links: list[PageLink] = []  # official links not yet read, offered to the self-challenge
 
 
@@ -297,7 +335,7 @@ def check_official_sources(
         )
 
     progress.start("official_pages")
-    careers: list[FetchResult] = []
+    careers: list[FetchResult] = list(domain.probed_careers)
     for url in career_links(domain.homepage, domain.domain or ""):
         try:
             careers.append(scraper.fetch(url))
@@ -315,6 +353,7 @@ def check_official_sources(
         )
         outcome = opportunity("unknown", detail, source_type="official_page", source_url=domain.homepage.url, reliability="official")
         outcome.domain_established = True
+        outcome.domain = domain.domain
         outcome.links = challenge_links([domain.homepage, *careers], domain.domain or "")
         return outcome
 
@@ -377,8 +416,71 @@ def check_official_sources(
         policy_contradiction=policy_contradiction,
         dropped_quotes=checked.dropped_quotes,
         domain_established=True,
+        domain=domain.domain,
         links=challenge_links(pages, domain.domain or ""),
     )
+
+
+class Signals(BaseModel):
+    """Findings beyond the official-site check that the rules weigh."""
+
+    credentials: bool = False
+    impersonation: bool = False
+    outdated: bool = False
+    cautions: list[str] = []
+    notes: list[str] = []
+
+
+def record_signals(ledger: Ledger, extraction: CheckedExtraction, text: str, origin: Origin, official: OfficialOutcome) -> Signals:
+    """Sensitive requests, how current the post is, and recruiter emails and links. No model."""
+    signals = Signals()
+    for record in ledger.records:
+        if record.claim_id == "credentials":
+            signals.credentials = True
+        elif record.claim_id == "sensitive_request" and "Sensitive documents are requested." not in signals.cautions:
+            signals.cautions.append("Sensitive documents are requested.")
+
+    stale = check_freshness(extraction.claims, text)
+    if stale:
+        signals.outdated = True
+        signals.cautions.append(stale.observation)
+        ledger.add(
+            claim_id="freshness",
+            claim="How current the post is",
+            source_type=origin.source_type,
+            source_url=origin.source_url,
+            excerpt=stale.excerpt,
+            reliability=origin.reliability,
+            observation=stale.observation,
+            supports_or_contradicts="contradicts",
+            status="fact",
+        )
+
+    links = [c.value for c in extraction.claims if c.kind == "application_link"]
+    for finding in check_channels(text, extraction.company, official.domain, links):
+        impersonation = finding.kind == "impersonation"
+        signals.impersonation = signals.impersonation or impersonation
+        if not impersonation:
+            signals.cautions.append(finding.observation)
+        ledger.add(
+            claim_id="identity" if impersonation else "channel",
+            claim=finding.claim,
+            source_type=origin.source_type,
+            source_url=origin.source_url,
+            excerpt=finding.excerpt,
+            reliability=origin.reliability,
+            observation=finding.observation,
+            supports_or_contradicts="contradicts" if impersonation else "neither",
+            status="contradiction" if impersonation else ("unverified" if official.domain else "fact"),
+        )
+
+    if extraction.several_opportunities:
+        where = f" at {extraction.company}" if extraction.company else ""
+        signals.notes.append(
+            f"This post lists several opportunities. JobXray checked only {extraction.role or 'the first one'}{where}. "
+            "Paste the others one at a time."
+        )
+    return signals
 
 
 def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction, origin: Origin) -> bool:
@@ -392,6 +494,8 @@ def record_pasted_facts(ledger: Ledger, extraction: CheckedExtraction, origin: O
         elif claim.kind == "other":
             other_count += 1
             claim_id = f"other-{other_count}"
+        elif claim.kind == "sensitive_request":
+            claim_id = "credentials" if asks_for_credentials(f"{claim.value} {claim.excerpt}") else "sensitive_request"
         else:
             claim_id = claim.kind
         ledger.add(
