@@ -84,6 +84,8 @@ OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free
 
 **Demo recording:** record from the local app, using the cached sample case if the live official-web check is unreliable on the day. Submission requires a demo video and a public GitHub repository.
 
+**Public repository:** https://github.com/gautamhardik/JobXray (public, full history; checked without logging in).
+
 **Optional deployment (decided in `6-ship`):** the stated preference is a public deployed URL in addition to the video and repository. The plan is two services: frontend on a Next.js host, backend on a Python host. Recording is done from the stable version, and the recording does not depend on the live deployment.
 
 ## Look and Feel
