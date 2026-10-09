@@ -39,7 +39,7 @@ Build mode: fast (switched from learn after slice 4 — the learner asked the ag
   Learner check: Paste the fee message and then a message with no fee. For each, say whether the decision and its top evidence make sense to you, and what the app tells you to do next.
   Commit: `Decide STOP or VERIFY FIRST from evidence rules`
 
-- [ ] **4. A real company's official site is checked, and the result says what was verified and what could not be**
+- [x] **4. A real company's official site is checked, and the result says what was verified and what could not be**
   Becomes usable: For a real company name in the pasted text, the backend proposes its official domain, checks the domain with several first-party signals, fetches the careers or jobs pages with Scrapling, and records what those pages do or do not say about the claimed role. Unreachable or unestablished sites show as Unknown, never as fake.
   Why now: This is the "real web investigation" that proves the agent checks claims rather than guessing from text. It depends on slices 2 and 3, which supply the claims and the rules.
   PRD ref: `prd.md > Features and Behavior > Investigating an opportunity` (official domain before checks, official web presence), `prd.md > Features and Behavior > Evidence` (Verified, Unverified, Unknown)
@@ -49,7 +49,7 @@ Build mode: fast (switched from learn after slice 4 — the learner asked the ag
   Learner check: Paste a message from a real company you know, with a role and a fee. Say whether the pages JobXray says it checked are really that company's official pages, and whether the verified or unknown label matches what you can see on the site yourself.
   Commit: `Check official company pages and record evidence`
 
-- [ ] **5. A link to a job posting is fetched and investigated like pasted text**
+- [x] **5. A link to a job posting is fetched and investigated like pasted text**
   Becomes usable: Pasting only a link (for example a job board posting) makes JobXray fetch that page, pull out its readable text, and run the same extraction, rules, and official-site check on it. Pages behind a login or blocked pages show "JobXray couldn't read this page. Paste the text instead."
   Why now: It reuses the Scrapling wrapper from slice 4, so it costs little once that exists, and it is the input the learner most wants.
   PRD ref: `prd.md > Features and Behavior > Investigating an opportunity` (link input), `prd.md > States and Boundaries` (input cannot be read)
@@ -59,7 +59,7 @@ Build mode: fast (switched from learn after slice 4 — the learner asked the ag
   Learner check: Paste a link to a real job posting you found online. Say whether JobXray read the right page and found the right company, role, and stages.
   Commit: `Investigate a job posting from its link`
 
-- [ ] **6. A screenshot is transcribed and investigated, and you can see the transcription**
+- [x] **6. A screenshot is transcribed and investigated, and you can see the transcription**
   Becomes usable: Pasting or dropping a screenshot of a WhatsApp chat or offer letter into the box shows a small preview; investigating it shows the transcription the vision model read, then the usual result built from that transcription.
   Why now: Screenshots are how scam offers are usually shared; this slice adds them once the text path is fully proven, and it raises the model-call budget to 5 only for image investigations.
   PRD ref: `prd.md > Features and Behavior > Investigating an opportunity` (screenshot input, model-call budget), `prd.md > States and Boundaries` (input cannot be read)
@@ -79,7 +79,7 @@ Build mode: fast (switched from learn after slice 4 — the learner asked the ag
   Learner check: Start an investigation and watch the checklist. Say whether each step name matches what you expected JobXray to be doing at that moment.
   Commit: `Show live investigation progress`
 
-- [ ] **8. The agent challenges its first verdict, and a changed verdict is shown on the main answer**
+- [x] **8. The agent challenges its first verdict, and a changed verdict is shown on the main answer**
   Becomes usable: After the first assessment, JobXray writes specific counter-hypotheses, runs a targeted check, and re-applies the rules. If the result changes, the main answer shows the new decision with the note "Assessment changed after contradictory evidence was found." If it does not, the result says "No credible contradictory evidence found."
   Why now: Self-challenge is the feature the product's identity rests on. It needs the web check and the rules already working, so that a changed verdict is grounded in real evidence.
   PRD ref: `prd.md > Features and Behavior > Self-challenge`, `prd.md > Features and Behavior > Result and recommendation` (revision note)
@@ -89,7 +89,7 @@ Build mode: fast (switched from learn after slice 4 — the learner asked the ag
   Learner check: Run an investigation where the first result is cautious, and read the self-challenge section. Say whether the counter-hypotheses are the ones you would have asked yourself, and whether the final decision explains any change.
   Commit: `Challenge the first verdict and revise when evidence changes`
 
-- [ ] **9. The example investigation works without the internet, and failures show plain messages**
+- [x] **9. The example investigation works without the internet, and failures show plain messages**
   Becomes usable: A "Try an example" option loads a saved investigation, clearly labeled Cached. When the model or the web fails, the person sees a plain message, never a guessed result.
   Why now: The demo recording and any judge's first click depend on this. It comes after the features it protects, so the saved case is a real run.
   PRD ref: `prd.md > States and Boundaries` (first use, cached demo, persistence, official site unreachable, input cannot be read), `prd.md > Screens and Layout` (example option)
@@ -138,6 +138,10 @@ Activity mode:
 
 ## Revisions
 
+- Live-model verification after the cap reset (all passed): slice 4 — Infosys-impersonation message: infosys.com established on all 6 signals, careers page read, internship Unverified, ₹1,500 UPI fee → STOP (4 calls, 5 fetches, 0 dropped quotes); slice 8 — that run's self-challenge wrote 3 counter-hypotheses and checked 3 real infosys.com pages, no change; slice 9 — that run saved as `app/samples/cached_case.json`; slice 5 — a real python.org job link read and investigated (small employer, no domain proposed → Unknown → VERIFY FIRST, the accepted small-company tradeoff); slice 6 — the chat screenshot transcribed exactly, 6/6 stages, STOP (4 calls); slice 3 — the fee case is STOP live (screenshot run) and the no-fee Microsoft posting is VERIFY FIRST live.
+- Bug found by the live run and fixed: the model labelled "Microsoft never charges candidates any fee" as a fee, which made a legitimate posting STOP. Fixed in the extraction prompt and with a deterministic guard (`app/evidence/no_fee.py`): a no-fee statement is reclassified before the rules run and never counts as a payment request. Regression test added; re-run live gives VERIFY FIRST with no payment records.
+- Vision model switched from `google/gemma-4-31b-it:free` to `dots-studio/dots-3-note-preview:free`: both Gemma free endpoints returned upstream 429s at the source; dots transcribed the screenshot exactly. `read_image` allows 8,000 tokens because dots spends tokens on reasoning first.
+
 - Motion layer added after the learner found the site static: the laser beam now follows the pointer (its listener sits on its own container, which the page covered), plus a decoding hero word, a paste-box scan sweep, a breathing Investigate glow, and staggered result entrances with a decision stamp and hover lift. Reduced-motion users get none of it. Verified: production `next build` compiles cleanly; the page renders and settles in the browser.
 
 - Look and Feel replaced after slice 10: the learner said the calm light design had "no design" and asked for threeui.com and "the best suitable design". New direction: dark X-ray film with ThreeUI Community's free `LaserCollection` beam behind the page (`components/XrayBackdrop.tsx`), cyan-white accent, evidence colors kept for meaning only. Copying ThreeUI Pro source was declined (paid, no redistribution); the learner agreed to free components. Verified in the browser at desktop and 375px for the paste, progress, and result views. PRD, spec, and README updated.
@@ -151,7 +155,7 @@ Activity mode:
 
 - Slice 7: the API became start-then-poll (`POST` returns 202 and an id; `GET` returns steps, then the result or a plain error). Step tracking lives in `app/investigation/progress.py` and the in-memory job store in `app/jobs.py` (not named in the spec's file tree). Verified with 4 progress tests and in the browser against a canned-model backend with a delay (midway: read done, extraction active; then the STOP result). The scan line is a plain line, not a gradient, to match the approved look.
 
-- Slice 6 committed before its live-model run (cap exhausted). Verified: 10 screenshot tests (bad type, fake PNG, over-4 MB refused before any model call; transcription shown and used; excerpts checked against the transcription; NO_TEXT gives a plain error; budget 5 for images and 4 otherwise). `llm_client.py` gained `read_image()` for the vision model (`VISION_MODEL`, default `google/gemma-4-31b-it:free`). A generated chat-style screenshot of the fee conversation (`backend/tests/fixtures/fee_screenshot.png`, made with Pillow as a dev-only tool) is ready for the live run.
+- Slice 6 committed before its live-model run (cap exhausted). Verified: 10 screenshot tests (bad type, fake PNG, over-4 MB refused before any model call; transcription shown and used; excerpts checked against the transcription; NO_TEXT gives a plain error; budget 5 for images and 4 otherwise). `llm_client.py` gained `read_image()` for the vision model (`VISION_MODEL`, default `google/gemma-4-31b-it:free` at first). A generated chat-style screenshot of the fee conversation (`backend/tests/fixtures/fee_screenshot.png`, made with Pillow as a dev-only tool) is ready for the live run.
 
 - Slice 5 committed before its live-model run (cap exhausted). Verified: 11 link tests (private addresses refused before any request, login wall and blocked pages give the paste-instead message, linked page produces the same stages, linked facts stay user-provided, one fetch from the shared budget) and live link reading of python.org/jobs and an Internshala listing (read) plus LinkedIn and Naukri (plain paste-instead message).
 

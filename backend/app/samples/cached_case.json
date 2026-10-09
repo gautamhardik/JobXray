@@ -1,0 +1,256 @@
+{
+  "decision": "STOP",
+  "severity": "Critical concern",
+  "next_step": "Do not pay or share documents. Verify the opportunity directly through the company's official careers page or recruitment contact, found by you, not from the message.",
+  "rule": "A payment is requested and the opportunity is not verified by an official source.",
+  "summary": "A payment is requested and the opportunity is not verified by an official source. 5 of 6 recruitment-funnel stages detected.",
+  "company": "Infosys",
+  "role": "Remote Data Analyst Internship",
+  "funnel": {
+    "detected": 5,
+    "total": 6,
+    "stages": [
+      {
+        "stage": "opportunity",
+        "label": "Opportunity offered",
+        "excerpt": "Your profile has been shortlisted for a 3-month Remote Data Analyst Internship with Infosys."
+      },
+      {
+        "stage": "recruiter_contact",
+        "label": "Recruiter contact",
+        "excerpt": "Hello students! Your profile has been shortlisted for a 3-month Remote Data Analyst Internship with Infosys."
+      },
+      {
+        "stage": "private_to_group",
+        "label": "Moved from private chat to a group",
+        "excerpt": "[Forwarded in \"Placement Updates 2026\" WhatsApp group]"
+      },
+      {
+        "stage": "training_pitch",
+        "label": "Training or program pitch",
+        "excerpt": "Reply YES and we will send your training kit link."
+      },
+      {
+        "stage": "payment_request",
+        "label": "Payment request",
+        "excerpt": "pay a ₹1,500 registration fee via UPI to internship.desk@okaxis within 24 hours."
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "id": "E1",
+      "claim_id": "company",
+      "claim": "Company: Infosys",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "Internship with Infosys.",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308778Z"
+    },
+    {
+      "id": "E2",
+      "claim_id": "role",
+      "claim": "Role: Remote Data Analyst Internship",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "Remote Data Analyst Internship",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308824Z"
+    },
+    {
+      "id": "E3",
+      "claim_id": "stipend",
+      "claim": "Stipend or pay: ₹25,000 per month",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "Stipend ₹25,000 per month.",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308830Z"
+    },
+    {
+      "id": "E4",
+      "claim_id": "payment",
+      "claim": "Payment requested: ₹1,500 registration fee",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "pay a ₹1,500 registration fee via UPI to internship.desk@okaxis within 24 hours.",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308834Z"
+    },
+    {
+      "id": "E5",
+      "claim_id": "other-1",
+      "claim": "Claim: Remote",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "Remote",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308842Z"
+    },
+    {
+      "id": "E6",
+      "claim_id": "other-2",
+      "claim": "Claim: 3-month duration",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "3-month",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308846Z"
+    },
+    {
+      "id": "E7",
+      "claim_id": "other-3",
+      "claim": "Claim: shortlisted status",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "shortlisted",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308851Z"
+    },
+    {
+      "id": "E8",
+      "claim_id": "other-4",
+      "claim": "Claim: No experience needed",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "No experience needed.",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308858Z"
+    },
+    {
+      "id": "E9",
+      "claim_id": "other-5",
+      "claim": "Claim: within 24 hours",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "within 24 hours",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308861Z"
+    },
+    {
+      "id": "E10",
+      "claim_id": "other-6",
+      "claim": "Claim: training kit link",
+      "source_type": "pasted_text",
+      "source_url": null,
+      "excerpt": "training kit link",
+      "reliability": "user-provided",
+      "observation": "Stated in the text you provided.",
+      "supports_or_contradicts": "neither",
+      "status": "fact",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:39.308865Z"
+    },
+    {
+      "id": "E11",
+      "claim_id": "official_domain",
+      "claim": "Official website of Infosys: infosys.com",
+      "source_type": "official_page",
+      "source_url": "https://www.infosys.com:443/",
+      "excerpt": null,
+      "reliability": "official",
+      "observation": "Several first-party identity signals agree. ✓ Not a look-alike or hosting domain; ✓ Homepage reachable; ✓ Company identity on the site; ✓ Links stay on the same site; ✓ Careers or jobs section; ✓ About or contact information",
+      "supports_or_contradicts": "neither",
+      "status": "verified",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:09:44.853939Z"
+    },
+    {
+      "id": "E12",
+      "claim_id": "opportunity",
+      "claim": "Remote Data Analyst Internship is offered by Infosys",
+      "source_type": "official_page",
+      "source_url": "https://www.infosys.com:443/careers/",
+      "excerpt": null,
+      "reliability": "official",
+      "observation": "The official careers pages that were read do not list this opportunity.",
+      "supports_or_contradicts": "neither",
+      "status": "unverified",
+      "live_or_cached": "cached",
+      "checked_at": "2026-10-09T00:10:18.266473Z"
+    }
+  ],
+  "top_evidence": [
+    "E4",
+    "E12",
+    "E11"
+  ],
+  "dropped_quotes": 0,
+  "model_calls": 4,
+  "fetches": 5,
+  "source": {
+    "source_type": "pasted_text",
+    "source_url": null,
+    "reliability": "user-provided",
+    "transcription": null
+  },
+  "challenge": {
+    "hypotheses": [
+      {
+        "question": "Does the Infosys \"Navigate your next\" page list remote data analyst internship opportunities?",
+        "kind": "alternate_official_source",
+        "checked_urls": [
+          "https://www.infosys.com:443/navigate-your-next.html"
+        ],
+        "finding": "Nothing on the checked pages changes the assessment."
+      },
+      {
+        "question": "Is the ₹1,500 fee described as an optional training kit or certification course on the Infosys site?",
+        "kind": "innocent_explanation",
+        "checked_urls": [
+          "https://www.infosys.com:443/services/data-ai-topaz.html"
+        ],
+        "finding": "Nothing on the checked pages changes the assessment."
+      },
+      {
+        "question": "Does the Infosys official site state that they never charge candidates any fees for recruitment or internships?",
+        "kind": "contradicting_evidence",
+        "checked_urls": [
+          "https://www.infosys.com:443/navigate-ai.html"
+        ],
+        "finding": "Nothing on the checked pages changes the assessment."
+      }
+    ],
+    "changed": false,
+    "first_decision": "STOP",
+    "note": "No credible contradictory evidence found."
+  },
+  "cached_at": "2026-10-09T00:10:29.999172Z"
+}

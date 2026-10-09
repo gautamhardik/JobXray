@@ -32,7 +32,7 @@ npm run dev
 
 Open http://localhost:3000. The frontend reads the backend address from `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).
 
-**Environment (`backend/.env`, never committed):** `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (default `nvidia/nemotron-3-super-120b-a12b:free`), `VISION_MODEL` for screenshots (default `google/gemma-4-31b-it:free`).
+**Environment (`backend/.env`, never committed):** `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (default `nvidia/nemotron-3-super-120b-a12b:free`), `VISION_MODEL` for screenshots (default `dots-studio/dots-3-note-preview:free`).
 
 **Limits per investigation:** 10,000 characters of text, 8 page fetches, 4 model calls (5 for screenshots), one self-challenge round. Free OpenRouter models allow 50 requests a day on a new account (about 12 investigations).
 

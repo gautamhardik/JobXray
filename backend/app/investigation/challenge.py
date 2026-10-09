@@ -14,6 +14,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.evidence.ledger import EvidenceRecord
+from app.evidence.no_fee import NO_FEE_POLICY
 from app.evidence.quotes import _normalize
 from app.llm.llm_client import LLMClient
 from app.web.scraper import FetchBudgetExceeded, FetchResult, PageLink, Scraper
@@ -28,11 +29,6 @@ Kind = Literal[
     "contradicting_evidence",
 ]
 
-NO_FEE_POLICY = re.compile(
-    r"(never|do not|don't|does not|doesn't|will not|won't|not)\s+(charge|ask|request|collect)\w*\b[^.]{0,80}\b(fee|fees|money|payment|deposit)"
-    r"|\b(no|zero)\s+(registration\s+|application\s+|recruitment\s+)?(fee|fees|charges?)\b[^.]{0,60}\b(candidate|applicant|recruit|hiring|interview|job)",
-    re.I,
-)
 STOP_WORDS = {"the", "a", "an", "of", "for", "and", "in", "at", "our", "program", "programme", "role", "position"}
 
 

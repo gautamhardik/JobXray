@@ -18,6 +18,6 @@ CHALLENGE_ROUNDS = 1
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-super-120b-a12b:free")
-VISION_MODEL = os.getenv("VISION_MODEL", "google/gemma-4-31b-it:free")
+VISION_MODEL = os.getenv("VISION_MODEL", "dots-studio/dots-3-note-preview:free")
 
 FRONTEND_ORIGINS = os.getenv("FRONTEND_ORIGINS", "http://localhost:3000").split(",")

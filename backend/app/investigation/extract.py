@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.evidence.no_fee import is_no_fee_statement
 from app.evidence.quotes import quote_in_text
 from app.llm.llm_client import LLMClient
 
@@ -83,10 +84,17 @@ def extract(text: str, client: LLMClient) -> CheckedExtraction:
 def check_quotes(raw: Extraction, text: str) -> CheckedExtraction:
     """Keep only claims and stages whose excerpt really appears in the pasted text."""
     claims = [c for c in raw.claims if quote_in_text(c.excerpt, text)]
+    # A "we never charge candidates" sentence is never a payment request, whatever the model labelled it.
+    for claim in claims:
+        if claim.kind == "fee" and is_no_fee_statement(claim.excerpt):
+            claim.kind = "other"
+            claim.value = f"No-fee statement: {claim.excerpt}"
 
     stages: list[ExtractedStage] = []
     seen: set[str] = set()
     for stage in raw.funnel_stages:
+        if stage.stage == "payment_request" and is_no_fee_statement(stage.excerpt):
+            continue
         if stage.stage not in seen and quote_in_text(stage.excerpt, text):
             stages.append(stage)
             seen.add(stage.stage)

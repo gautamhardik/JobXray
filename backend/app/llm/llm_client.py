@@ -57,7 +57,7 @@ class LLMClient:
         })
         return parse_reply(payload, output_format)
 
-    def read_image(self, system: str, instruction: str, image_data_url: str, max_tokens: int = 4000) -> str:
+    def read_image(self, system: str, instruction: str, image_data_url: str, max_tokens: int = 8000) -> str:
         """A plain-text reply about one image, from the vision model (screenshot transcription)."""
         payload = self._post({
             "model": VISION_MODEL,

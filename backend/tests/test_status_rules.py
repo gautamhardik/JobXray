@@ -133,3 +133,25 @@ def test_payment_stage_without_fee_claim_still_counts_as_payment():
     )
     result = _run(extraction)
     assert result.decision == "STOP"
+
+
+def test_no_fee_statement_is_never_a_payment_request():
+    """Live finding: the model labelled "Microsoft never charges candidates any fee" as a fee."""
+    text = "Microsoft is hiring interns. Microsoft never charges candidates any fee at any stage of recruitment."
+    extraction = Extraction(
+        company="Microsoft",
+        role="Software Engineering Intern",
+        claims=[
+            ExtractedClaim(kind="company", value="Microsoft", excerpt="Microsoft is hiring interns"),
+            ExtractedClaim(kind="fee", value="no fee", excerpt="Microsoft never charges candidates any fee at any stage of recruitment."),
+        ],
+        funnel_stages=[
+            ExtractedStage(stage="opportunity", excerpt="Microsoft is hiring interns"),
+            ExtractedStage(stage="payment_request", excerpt="Microsoft never charges candidates any fee"),
+        ],
+    )
+    result = run_investigation(text, ScriptedClient(extraction), saved_scraper({}))
+    assert result.decision == "VERIFY FIRST"
+    assert not any(r.claim_id == "payment" for r in result.evidence)
+    assert [s.stage for s in result.funnel.stages] == ["opportunity"]
+    assert any(r.claim.startswith("Claim: No-fee statement") for r in result.evidence)

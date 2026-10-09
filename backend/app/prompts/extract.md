@@ -10,7 +10,7 @@ Extract:
    - `company`: the company named
    - `role`: the job or internship title
    - `stipend`: pay, salary, or stipend amounts
-   - `fee`: any money the candidate is asked to pay (registration, training, certificate, deposit, onboarding)
+   - `fee`: any money the candidate is asked to pay (registration, training, certificate, deposit, onboarding). A statement that no fee is charged (for example "we never charge candidates") is not a fee; record it as `other`.
    - `application_link`: a link or address where the candidate is told to apply or register
    - `other`: any other specific, checkable claim (location, duration, selection status)
 4. **funnel_stages**: which of these recruitment-funnel stages appear in the text. Include a stage only if the text actually shows it:
@@ -19,6 +19,6 @@ Extract:
    - `private_to_group`: the candidate is moved from a one-to-one chat into a group or community (for example a WhatsApp or Telegram group)
    - `group_orientation`: a group call, webinar, or orientation session with several candidates
    - `training_pitch`: a training, course, certification, or program is pitched as part of the process
-   - `payment_request`: the candidate is asked to pay money
+   - `payment_request`: the candidate is asked to pay money. A statement that nothing has to be paid is not a payment request.
 
 For every claim and every stage, `excerpt` must be copied **exactly** from the pasted text: the shortest passage (one sentence or less) that shows it. Do not paraphrase, translate, or correct spelling. If you cannot quote it exactly, leave it out.

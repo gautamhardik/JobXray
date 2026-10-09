@@ -120,7 +120,7 @@ PRD ref: `prd.md > Evidence`.
 
 **`app/main.py` — HTTP routes.** `POST /api/investigations` (start; body has exactly one of `text`, `url`, or `image`; returns 202 and an id), `GET /api/investigations/{id}` (step list, then the result or a plain error; 404 if unknown), `GET /api/example` (the saved example, always labelled Cached). CORS allows the frontend origin.
 
-**`app/config.py` — limits and settings.** The numbers, in one place: `MAX_INPUT_CHARS = 10_000`, `MAX_FETCHES = 8`, `MAX_MODEL_CALLS = 4`, `MAX_MODEL_CALLS_IMAGE = 5`, `MAX_IMAGE_BYTES = 4 MB`, `CHALLENGE_ROUNDS = 1`. Also reads `VISION_MODEL` (default `google/gemma-4-31b-it:free`). Reads `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` from the environment.
+**`app/config.py` — limits and settings.** The numbers, in one place: `MAX_INPUT_CHARS = 10_000`, `MAX_FETCHES = 8`, `MAX_MODEL_CALLS = 4`, `MAX_MODEL_CALLS_IMAGE = 5`, `MAX_IMAGE_BYTES = 4 MB`, `CHALLENGE_ROUNDS = 1`. Also reads `VISION_MODEL` (default `dots-studio/dots-3-note-preview:free`). Reads `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` from the environment.
 
 **`app/investigation/pipeline.py` — the investigation sequence.** Runs steps 1–7 from "How This Works." Owns the step-status list the frontend polls. Enforces the fetch and model-call budgets: a request that would exceed a budget is refused and recorded as Unknown, not silently skipped.
 PRD refs: `prd.md > Investigating an opportunity`, `prd.md > Self-challenge`.
