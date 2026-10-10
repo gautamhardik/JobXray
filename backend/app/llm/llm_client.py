@@ -26,7 +26,16 @@ class ModelBudgetExceeded(Exception):
 
 
 class ModelCallError(Exception):
-    """A model call failed. The message is safe to show to the person."""
+    """A model call failed. The message is safe to show to the person.
+    retryable: a passing problem (timeout, server error, busy provider, garbled answer)."""
+
+    def __init__(self, message: str, retryable: bool = False):
+        super().__init__(message)
+        self.retryable = retryable
+
+
+DAILY_CAP = "free-models-per-day"
+RETRIES_PER_INVESTIGATION = 1
 
 
 class LLMClient:
@@ -35,11 +44,26 @@ class LLMClient:
     def __init__(self, max_calls: int = MAX_MODEL_CALLS, http: httpx.Client | None = None):
         self.max_calls = max_calls
         self.calls = 0
+        self.retries_left = RETRIES_PER_INVESTIGATION
         self._http = http
+
+    def _with_retry(self, call):
+        """One retry per investigation for a passing failure. The retry gets its own call so later steps keep theirs."""
+        try:
+            return call()
+        except ModelCallError as error:
+            if not error.retryable or self.retries_left <= 0:
+                raise
+            self.retries_left -= 1
+            self.max_calls += 1
+            return call()
 
     def structured(self, system: str, user: str, output_format: type[T], max_tokens: int = 8000) -> T:
         """A reply that must match output_format's schema (calls 1-4)."""
-        payload = self._post({
+        return self._with_retry(lambda: parse_reply(self._post(self._structured_body(system, user, output_format, max_tokens)), output_format))
+
+    def _structured_body(self, system: str, user: str, output_format: type[T], max_tokens: int) -> dict[str, Any]:
+        return ({
             "model": OPENROUTER_MODEL,
             "max_tokens": max_tokens,
             "messages": [
@@ -55,12 +79,11 @@ class LLMClient:
                 },
             },
         })
-        return parse_reply(payload, output_format)
 
     def read_image(self, system: str, instruction: str, image_data_url: str | list[str], max_tokens: int = 8000) -> str:
         """A plain-text reply about one or more images, from the vision model (screenshot transcription)."""
         urls = [image_data_url] if isinstance(image_data_url, str) else image_data_url
-        payload = self._post({
+        body = {
             "model": VISION_MODEL,
             "max_tokens": max_tokens,
             "messages": [
@@ -73,8 +96,8 @@ class LLMClient:
                     ],
                 },
             ],
-        })
-        return parse_text_reply(payload)
+        }
+        return self._with_retry(lambda: parse_text_reply(self._post(body)))
 
     def _post(self, body: dict[str, Any]) -> dict[str, Any]:
         if self.calls >= self.max_calls:
@@ -90,7 +113,7 @@ class LLMClient:
         try:
             response = self._client().post(OPENROUTER_URL, json=body, headers=headers)
         except httpx.TimeoutException:
-            raise ModelCallError("The model took too long to answer. Try again.")
+            raise ModelCallError("The model took too long to answer. Try again.", retryable=True)
         except httpx.HTTPError:
             raise ModelCallError("JobXray could not reach OpenRouter. Check the internet connection.")
 
@@ -99,7 +122,14 @@ class LLMClient:
         if response.status_code == 402:
             raise ModelCallError("The OpenRouter account has no credit available for this request.")
         if response.status_code == 429:
-            raise ModelCallError("The free model's request limit was reached. Try again later.")
+            if DAILY_CAP in response.text:
+                raise ModelCallError(
+                    "JobXray's free daily model limit is used up (it resets at 00:00 UTC, 05:30 IST). "
+                    "Meanwhile, try the example."
+                )
+            raise ModelCallError("The free model is busy right now. Try again in a minute.", retryable=True)
+        if response.status_code >= 500:
+            raise ModelCallError(f"OpenRouter returned an error ({response.status_code}). Try again.", retryable=True)
         if response.status_code >= 400:
             raise ModelCallError(f"OpenRouter returned an error ({response.status_code}). Try again.")
         return response.json()
@@ -117,7 +147,7 @@ def parse_text_reply(payload: dict[str, Any]) -> str:
         choice = payload["choices"][0]
         content = choice["message"]["content"] or ""
     except (KeyError, IndexError, TypeError):
-        raise ModelCallError("The model returned an empty answer. Try again.")
+        raise ModelCallError("The model returned an empty answer. Try again.", retryable=True)
     if choice.get("finish_reason") == "length":
         raise ModelCallError("The answer was cut off before it finished. Try a smaller screenshot.")
     return content.strip()
@@ -131,13 +161,13 @@ def parse_reply(payload: dict[str, Any], output_format: type[T]) -> T:
         choice = payload["choices"][0]
         content = choice["message"]["content"] or ""
     except (KeyError, IndexError, TypeError):
-        raise ModelCallError("The model returned an empty answer. Try again.")
+        raise ModelCallError("The model returned an empty answer. Try again.", retryable=True)
     if choice.get("finish_reason") == "length":
         raise ModelCallError("The analysis was cut off before it finished. Try a shorter paste.")
     try:
         return output_format.model_validate_json(_FENCE.sub("", content.strip()))
     except ValidationError:
-        raise ModelCallError("The model's answer did not match the expected format. Try again.")
+        raise ModelCallError("The model's answer did not match the expected format. Try again.", retryable=True)
 
 
 def strict_schema(model: type[BaseModel]) -> dict[str, Any]:

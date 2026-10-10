@@ -25,10 +25,12 @@ from app.input import InputUnreadable
 from app.input.image import transcribe
 from app.input.link import read_link
 from app.investigation.challenge import CheckedHypothesis, plan_challenge, run_challenge
+from app.investigation.lookup import discover_domain, find_listing
 from app.investigation.plan import ATS_HOSTS, _same_site, career_links, check_domain, normalize_url, propose
 from app.investigation.progress import NoProgress, Progress
 from app.llm.llm_client import LLMClient, ModelBudgetExceeded, ModelCallError
 from app.web.scraper import FetchBudgetExceeded, FetchResult, PageLink, Scraper
+from app.web.search import Search
 
 CLAIM_LABELS = {
     "company": "Company",
@@ -106,6 +108,7 @@ class InvestigationResult(BaseModel):
     dropped_quotes: int
     model_calls: int
     fetches: int
+    searches: int = 0
     source: Origin
     challenge: Challenge
     cached_at: datetime | None = None  # set only on the saved example; never on a live run
@@ -154,9 +157,11 @@ def run_investigation(
     scraper: Scraper | None = None,
     origin: Origin | None = None,
     progress: Progress | None = None,
+    search: Search | None = None,
 ) -> InvestigationResult:
     client = client or LLMClient()
     scraper = scraper or Scraper()
+    search = search or Search()
     origin = origin or Origin()
     progress = progress or NoProgress()
     if origin.source_type == "pasted_text":
@@ -183,7 +188,7 @@ def run_investigation(
     ledger = Ledger()
     payment_requested = record_pasted_facts(ledger, extraction, origin)
 
-    official = check_official_sources(extraction, client, scraper, ledger, progress)
+    official = check_official_sources(extraction, client, scraper, ledger, progress, search)
     signals = record_signals(ledger, extraction, text, origin, official)
     first = decide(
         payment_requested=payment_requested,
@@ -239,6 +244,7 @@ def run_investigation(
         dropped_quotes=extraction.dropped_quotes + official.dropped_quotes,
         model_calls=client.calls,
         fetches=scraper.fetches,
+        searches=search.searches,
         source=origin,
         challenge=challenge,
         notes=signals.notes,
@@ -300,9 +306,13 @@ def check_official_sources(
     scraper: Scraper,
     ledger: Ledger,
     progress: Progress | None = None,
+    search: Search | None = None,
 ) -> OfficialOutcome:
-    """Calls 2 and 3 plus the fetches between them. Every outcome lands in the ledger."""
+    """Calls 2 and 3 plus the fetches between them. Every outcome lands in the ledger.
+    Search is a fallback only: for the domain when the proposed one fails, and for the
+    listing when the careers pages don't show it."""
     progress = progress or NoProgress()
+    search = search or Search(max_searches=0)
     claim = opportunity_claim(extraction)
 
     def opportunity(status: Status, observation: str, **source) -> OfficialOutcome:
@@ -324,6 +334,11 @@ def check_official_sources(
     try:
         proposal = propose(extraction, client)  # call 2
         domain = check_domain(proposal.official_domain, extraction.company, scraper)
+        found_by_search = False
+        if not domain.established:
+            alternative = discover_domain(extraction.company, proposal.official_domain, scraper, search)
+            if alternative is not None:
+                domain, found_by_search = alternative, True
     except FetchBudgetExceeded:
         return opportunity("unknown", "The page-fetch budget ran out before the official site was checked.", source_type="none", reliability="unknown")
 
@@ -333,7 +348,8 @@ def check_official_sources(
         source_type="official_page" if domain.homepage else "none",
         source_url=domain.homepage.url if domain.homepage else None,
         reliability="official" if domain.established else "unknown",
-        observation=domain.reason + " " + "; ".join(f"{'✓' if s.passed else '✗'} {s.name}" for s in domain.signals),
+        observation=("Found through a web search for the company. " if found_by_search else "")
+        + domain.reason + " " + "; ".join(f"{'✓' if s.passed else '✗'} {s.name}" for s in domain.signals),
         status="verified" if domain.established else "unknown",
     )
     if domain.established:
@@ -353,16 +369,30 @@ def check_official_sources(
             careers.append(scraper.fetch(url))
         except FetchBudgetExceeded:
             break
+    # Careers pages that only show their jobs after JavaScript runs are read in a browser.
+    for i, page in enumerate(careers):
+        if not inspectable(page) and (page.ok or page.status in (403, 429, 503)) and scraper.can_render:
+            try:
+                rendered = scraper.fetch_rendered(page.url)
+            except FetchBudgetExceeded:
+                break
+            if inspectable(rendered):
+                careers[i] = rendered
     readable: list[FetchResult] = []
     for page in careers:
         if inspectable(page) and all(page.text != r.text for r in readable):
             readable.append(page)  # the same page under two addresses is read once
+    listing = None
+    if not readable and extraction.role:
+        listing = find_listing(extraction.role, domain.domain or "", scraper, search)
+        if listing and listing.verified:
+            return listed(ledger, claim, listing, domain, careers, progress)
     if not readable:
         detail = (
             "No careers or jobs page was found on the official site."
             if not careers
             else "The official careers pages could not be read (they may need JavaScript or blocked the request)."
-        )
+        ) + (f" {listing.observation}" if listing else "")
         outcome = opportunity("unknown", detail, source_type="official_page", source_url=domain.homepage.url, reliability="official")
         outcome.domain_established = True
         outcome.domain = domain.domain
@@ -383,6 +413,11 @@ def check_official_sources(
         contradicts_claim=role_conflict is not None,
     )
     status = opportunity_status(check)
+    if status == "unverified" and extraction.role:
+        listing = find_listing(extraction.role, domain.domain or "", scraper, search)
+        if listing and listing.verified:
+            outcome = listed(ledger, claim, listing, domain, pages, progress)
+            return record_policy(outcome, checked, by_id, ledger)
     progress.done("official_pages", f"{len(readable)} page{'s' if len(readable) != 1 else ''} read · {status}")
     evidence = role_conflict or role_match
     page = by_id[evidence.page_id] if evidence else readable[0]
@@ -403,14 +438,26 @@ def check_official_sources(
         status=status,
     )
 
-    policy_contradiction = False
+    outcome = OfficialOutcome(
+        status=status,
+        dropped_quotes=checked.dropped_quotes,
+        domain_established=True,
+        domain=domain.domain,
+        links=challenge_links(pages, domain.domain or ""),
+    )
+    return record_policy(outcome, checked, by_id, ledger)
+
+
+def record_policy(outcome: OfficialOutcome, checked, by_id: dict[str, FetchResult], ledger: Ledger) -> OfficialOutcome:
+    """What the official pages say about fees, recruiting, and pay. A no-fee statement contradicts a fee."""
+    outcome.dropped_quotes = checked.dropped_quotes
     for obs in checked.observations:
         if obs.finding == "not_mentioned" or obs.topic == "role":
             continue
         page = by_id[obs.page_id]
         conflicts = obs.finding == "conflicts"
         if obs.topic == "recruitment_policy" and conflicts:
-            policy_contradiction = True
+            outcome.policy_contradiction = True
         ledger.add(
             claim_id="recruitment_policy" if obs.topic == "recruitment_policy" else "stipend",
             claim="How the company recruits and whether it charges candidates" if obs.topic == "recruitment_policy" else "Stipend or pay for the role",
@@ -422,14 +469,28 @@ def check_official_sources(
             supports_or_contradicts="contradicts" if conflicts else "supports",
             status="contradiction" if conflicts else "verified",
         )
+    return outcome
 
+
+def listed(ledger: Ledger, claim: str, listing, domain, pages: list[FetchResult], progress: Progress) -> OfficialOutcome:
+    """The role was found on an official page through search and confirmed by reading that page."""
+    ledger.add(
+        claim_id="opportunity",
+        claim=claim,
+        source_type="official_page",
+        source_url=listing.url,
+        excerpt=listing.excerpt,
+        reliability="official",
+        observation=f"The company's official site lists this opportunity. {listing.observation}",
+        supports_or_contradicts="supports",
+        status="verified",
+    )
+    progress.done("official_pages", "found through a search of the official site · verified")
     return OfficialOutcome(
-        status=status,
-        policy_contradiction=policy_contradiction,
-        dropped_quotes=checked.dropped_quotes,
+        status="verified",
         domain_established=True,
         domain=domain.domain,
-        links=challenge_links(pages, domain.domain or ""),
+        links=challenge_links([domain.homepage, *pages], domain.domain or ""),
     )
 
 

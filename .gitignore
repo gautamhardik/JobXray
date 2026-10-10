@@ -10,3 +10,4 @@ __pycache__/
 
 # Generated launch video workspace
 brag-output/
+backend/.search-cache/

@@ -18,7 +18,7 @@ Inside the server, the investigation is a fixed sequence of steps. Only some ste
 
 1. **Read the pasted text (model call 1).** The model pulls out claims (company, role, stipend, fee, application link), and marks which recruitment-funnel stages appear, each with the exact excerpt from the pasted text.
 2. **Plan the check (model call 2).** The model proposes the company's official domain (for example `company.com`) and the questions to answer on its pages. Code then verifies the domain from several first-party identity signals on the fetched site: the homepage identifies the company consistently; contact or company details are consistent across pages; a careers or jobs section exists or is discoverable; links stay within the same domain; no obvious identity mismatch. A company-name match alone never establishes the domain. If the signals are not sufficient, the domain is **Unknown**, never treated as fake. The model never gets to declare a domain official.
-3. **Fetch official pages (code, Scrapling).** Code finds careers or jobs pages linked from the verified homepage and fetches them. At most 8 fetches per investigation.
+3. **Fetch official pages (code, Scrapling).** Code finds careers or jobs pages linked from the verified homepage and fetches them; a careers page that only shows its jobs after JavaScript runs is read in a headless browser (Scrapling's DynamicFetcher, at most 2 per investigation). At most 10 fetches per investigation. If the proposed domain can't be established, or the careers pages don't show the role, a SerpAPI web search (at most 2 per investigation, cached) points at the company's site or at the listing on it; the identity checks and a page read still decide.
 4. **Record observations (model call 3 uses the pages).** The model reads each fetched page and reports what it observed: does the page list this role, and does it match the claim? Each observation must quote a passage. Code checks that the quoted passage really appears in the fetched text. If it doesn't, the observation is thrown away.
 5. **Decide the evidence status (code, not the model).** Plain rules turn each claim and its observations into a status: Fact, Verified, Unverified, Unknown, or Contradiction. This is the step that makes the investigation auditable: the same evidence always produces the same status.
 6. **Challenge the first result (model call 4).** The model writes specific counter-hypotheses from the weak points of the first result and proposes targeted pages to check. Code fetches them (within the same 8-fetch budget) and re-runs the status rules.
@@ -122,7 +122,7 @@ PRD ref: `prd.md > Evidence`.
 
 **`app/main.py` — HTTP routes.** `POST /api/investigations` (start; body has exactly one of `text`, `url`, or `images` (up to 3 screenshots, optionally with `text` typed alongside; a single `image` is still accepted); returns 202 and an id), `GET /api/investigations/{id}` (step list, then the result or a plain error; 404 if unknown), `GET /api/example` (the saved example, always labelled Cached). CORS allows the frontend origin.
 
-**`app/config.py` — limits and settings.** The numbers, in one place: `MAX_INPUT_CHARS = 10_000`, `MAX_FETCHES = 8`, `MAX_MODEL_CALLS = 4`, `MAX_MODEL_CALLS_IMAGE = 5`, `MAX_IMAGE_BYTES = 4 MB`, `CHALLENGE_ROUNDS = 1`. Also reads `VISION_MODEL` (default `dots-studio/dots-3-note-preview:free`). Reads `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` from the environment.
+**`app/config.py` — limits and settings.** The numbers, in one place: `MAX_INPUT_CHARS = 10_000`, `MAX_FETCHES = 10`, `MAX_RENDERED_FETCHES = 2`, `MAX_SEARCHES = 2`, `MAX_MODEL_CALLS = 4` (plus one retry per investigation for a passing model failure), `MAX_MODEL_CALLS_IMAGE = 5`, `MAX_IMAGE_BYTES = 4 MB`, `CHALLENGE_ROUNDS = 1`. Also reads `VISION_MODEL` (default `dots-studio/dots-3-note-preview:free`). Reads `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` from the environment, plus the optional `SERPAPI_API_KEY` (search off without it) and `RENDER_PAGES` (0 turns the browser off).
 
 **`app/investigation/pipeline.py` — the investigation sequence.** Runs steps 1–7 from "How This Works." Owns the step-status list the frontend polls. Enforces the fetch and model-call budgets: a request that would exceed a budget is refused and recorded as Unknown, not silently skipped.
 PRD refs: `prd.md > Investigating an opportunity`, `prd.md > Self-challenge`.
@@ -147,7 +147,11 @@ PRD ref: `prd.md > Evidence`.
 **`app/evidence/freshness.py`, `channels.py`, `sensitive.py` — signals beyond the official-site check.** Plain Python, no model. `freshness.py` reads the post's age, deadline, eligible batch, and LinkedIn's "No longer accepting applications" to flag outdated or closed posts. `channels.py` compares recruiter emails and application links with the official domain (personal webmail, forms and link shorteners, look-alike domains). `sensitive.py` separates requests for secrets (OTP, PIN, card details, passwords) from document requests (Aadhaar, PAN, bank details). `tasks.py` confirms a task-scheme claim (paid likes, ratings, reviews).
 PRD refs: `prd.md > Evidence`, `prd.md > Result and recommendation`, `prd.md > Product Decisions`.
 
-**`app/web/scraper.py` — Scrapling wrapper.** Fetches a URL, extracts the readable text, records the URL and time, and returns a failure reason on timeout, block, or error. Counts fetches against the budget.
+**`app/web/scraper.py` — Scrapling wrapper.** Fetches a URL, extracts the readable text, records the URL and time, and returns a failure reason on timeout, block, file (PDF, image), or error. Counts fetches against the budget. `fetch_rendered` reads a page in headless Chromium for pages that need JavaScript; inside the browser every request is checked against the same private-address guard.
+
+**`app/web/search.py` — SerpAPI search.** Google results as JSON, used only as a fallback. At most 2 searches per investigation, answers cached on disk for 7 days so repeated runs spend nothing, off when no key is set.
+
+**`app/investigation/lookup.py` — search fallbacks.** `discover_domain` searches for the company's website when the proposed domain fails; the result still has to pass every identity check, and the message is never a source of the domain. `find_listing` searches the official site for the role when the careers pages don't show it; only a page read by JobXray that shows the role verifies it, never a search snippet alone.
 PRD ref: `prd.md > Investigating an opportunity` (official web presence).
 
 **`app/llm/llm_client.py` — model wrapper.** The only place that calls the model, through OpenRouter. Counts model calls against the budget, requests JSON matching a Pydantic schema (strict mode), validates the reply, and turns failures (bad key, no credit, free-tier rate limit, timeout, malformed reply) into plain messages. Never guesses a result from a malformed reply.
@@ -202,20 +206,23 @@ JobXray/
     │   │   ├── extract.py      # call 1
     │   │   ├── plan.py         # call 2 and domain check
     │   │   ├── observe.py      # call 3
-    │   │   └── challenge.py    # call 4
+    │   │   ├── challenge.py    # call 4
+    │   │   └── lookup.py       # search fallbacks: find the official site, find the listing on it
     │   ├── evidence/
     │   │   ├── ledger.py       # evidence record model
     │   │   ├── status.py       # status and decision rules (no model)
     │   │   ├── freshness.py    # outdated or closed posts (no model)
     │   │   ├── channels.py     # recruiter emails and links vs the official domain (no model)
     │   │   ├── sensitive.py    # secrets vs documents requested (no model)
+    │   │   ├── tasks.py        # paid likes, ratings and prepaid tasks (no model)
     │   │   ├── no_fee.py       # "we never charge candidates" is not a fee
     │   │   └── quotes.py       # quote check shared by extraction and page observations
     │   ├── input/              # __init__.py: InputUnreadable (plain-message errors)
     │   │   ├── link.py         # fetch a user-provided link (SSRF guard)
     │   │   └── image.py        # transcribe a screenshot with the vision model
     │   ├── web/
-    │   │   └── scraper.py      # Scrapling wrapper
+    │   │   ├── scraper.py      # Scrapling wrapper (plain fetch, and a headless browser for JavaScript pages)
+    │   │   └── search.py       # SerpAPI search fallback, cached, at most 2 per investigation
     │   ├── llm/
     │   │   └── llm_client.py
     │   ├── prompts/            # extract.md, plan.md, observe.md, challenge.md, transcribe.md
@@ -236,7 +243,8 @@ JobXray/
 ## External Services and Dependencies
 
 - **OpenRouter (free models).** Used for calls 1–4. Endpoint `POST https://openrouter.ai/api/v1/chat/completions`, `Authorization: Bearer <OPENROUTER_API_KEY>` (server side only), body with `model`, `messages`, and `response_format` of type `json_schema` (strict). Docs: https://openrouter.ai/docs. Free-model limits (checked on openrouter.ai/docs/api-reference/limits): 20 requests per minute; 50 requests per day for accounts with under 10 credits purchased, 1,000 per day with at least 10. At 4 calls per investigation, about 12 investigations a day on the lower tier. Cost: free. Privacy: some free providers may log prompts. Model chosen from free models listing `structured_outputs` support.
-- **Official company websites (via Scrapling).** Public pages fetched over normal HTTP. No keys. Rate limits and blocking are unknown; the code treats any failure as Unknown, not as evidence. **Verify** Scrapling's installed API in build step 1.
+- **Official company websites (via Scrapling).** Public pages fetched over normal HTTP. No keys. Rate limits and blocking are unknown; the code treats any failure as Unknown, not as evidence. Pages that need JavaScript are read with Scrapling's DynamicFetcher in headless Chromium (`python -m playwright install chromium`; about 8–12 s per page).
+- **SerpAPI (optional).** `GET https://serpapi.com/search.json?engine=google&q=…&api_key=…`. Docs: https://serpapi.com/search-api. Free plan: a small monthly quota (the learner has about 167 searches), so searches run only as a fallback, at most 2 per investigation, cached for 7 days.
 - **Hosting (optional, `6-ship`).** Two services, if deployed. Costs and free-tier limits to be checked then.
 
 ## Important Failure Modes
@@ -267,7 +275,8 @@ JobXray/
 ### Learner decisions (agreed in this conversation)
 
 - Stack: Next.js frontend, FastAPI backend, Scrapling for web extraction, OpenRouter free models for reasoning (changed during the build from the Claude API). No PostgreSQL. Two-service deployment preferred.
-- Limits: 10,000 input characters; 8 official-web fetches per investigation; 4 model calls maximum; one self-challenge round.
+- Limits: 10,000 input characters; 10 official-web fetches per investigation (raised from 8 for the search fallback), 2 of them in a browser; 2 web searches; 4 model calls maximum plus one retry for a passing failure; one self-challenge round.
+- Search and browser added after the build (learner choice, "use both"): the official-site check was the main reason real jobs ended at Verify First. Search only points; identity checks and a page read decide.
 - One OpenRouter free model for all reasoning, set by `OPENROUTER_MODEL`; no backup provider (learner choice).
 - Official domain established by a model-proposed domain, verified by fetch and several first-party identity signals; a company-name match alone never establishes it (option 1, chosen over a search API).
 - Deployment: public live URL alongside the video and GitHub repository; the recording comes from the stable version and does not depend on the live deployment.

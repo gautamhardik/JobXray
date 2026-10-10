@@ -20,6 +20,7 @@ Requirements: Python 3.12+, Node.js 20+, and an [OpenRouter](https://openrouter.
 cd backend
 python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements.txt   # on macOS/Linux: .venv/bin/python
+.venv/Scripts/python -m playwright install chromium        # for careers pages that need JavaScript (optional)
 cp .env.example .env                                       # then add your OPENROUTER_API_KEY
 .venv/Scripts/python -m uvicorn app.main:app --port 8000
 ```
@@ -32,9 +33,9 @@ npm run dev
 
 Open http://localhost:3000. The frontend reads the backend address from `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).
 
-**Environment (`backend/.env`, never committed):** `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (default `nvidia/nemotron-3-super-120b-a12b:free`), `VISION_MODEL` for screenshots (default `dots-studio/dots-3-note-preview:free`).
+**Environment (`backend/.env`, never committed):** `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (default `nvidia/nemotron-3-super-120b-a12b:free`), `VISION_MODEL` for screenshots (default `dots-studio/dots-3-note-preview:free`), and optionally `SERPAPI_API_KEY` for the search fallback (off when empty) and `RENDER_PAGES=0` to skip the browser.
 
-**Limits per investigation:** 10,000 characters of text, 8 page fetches, 4 model calls (5 for screenshots, plus one retry if the free model returns an empty answer), up to 3 screenshots, one self-challenge round. Free OpenRouter models allow 50 requests a day on a new account (about 12 investigations).
+**Limits per investigation:** 10,000 characters of text, 10 page fetches (2 of them in a headless browser), 2 web searches, 4 model calls (5 for screenshots, plus one retry for a passing model failure), up to 3 screenshots, one self-challenge round. Free OpenRouter models allow 50 requests a day on a new account (about 12 investigations).
 
 **Example without the model:** after saving one real run with `python -m scripts.save_example tests/fixtures/realworld/india_internship_upi.txt` (from `backend/`), "Try an example" loads it offline, labelled Cached.
 

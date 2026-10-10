@@ -64,6 +64,7 @@ export type InvestigationResult = {
   dropped_quotes: number;
   model_calls: number;
   fetches: number;
+  searches?: number;
   source: Origin;
   challenge: Challenge;
   cached_at: string | null;

@@ -70,7 +70,7 @@ def test_budget_is_enforced_before_calling():
 
 @pytest.mark.parametrize(
     "status, message",
-    [(401, "API key"), (402, "credit"), (429, "limit"), (503, "error \\(503\\)")],
+    [(401, "API key"), (402, "credit"), (429, "busy"), (503, "error \\(503\\)")],
 )
 def test_http_errors_become_plain_messages(status, message):
     with pytest.raises(ModelCallError, match=message):
@@ -81,3 +81,37 @@ def test_missing_key_is_a_configuration_error(monkeypatch):
     monkeypatch.setattr(llm_client, "OPENROUTER_API_KEY", "")
     with pytest.raises(ModelCallError, match="not configured"):
         _client(200).structured("system", "user", Extraction)
+
+
+def _sequence(*responses) -> tuple[LLMClient, list]:
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        status, body = responses[min(len(seen), len(responses) - 1)]
+        seen.append(status)
+        return httpx.Response(status, json=body) if isinstance(body, dict) else httpx.Response(status, text=body)
+
+    return LLMClient(http=httpx.Client(transport=httpx.MockTransport(handler))), seen
+
+
+def test_a_passing_failure_is_retried_once_without_eating_a_later_steps_call():
+    client, seen = _sequence((503, {}), (200, _reply(json.dumps(VALID))))
+    assert client.structured("system", "user", Extraction).company == VALID["company"]
+    assert seen == [503, 200]
+    assert client.max_calls - client.calls == 4 - 1  # the retry brought its own call
+
+
+def test_only_one_retry_per_investigation():
+    client, seen = _sequence((503, {}))
+    with pytest.raises(ModelCallError):
+        client.structured("system", "user", Extraction)
+    with pytest.raises(ModelCallError):
+        client.structured("system", "user", Extraction)
+    assert seen == [503, 503, 503]
+
+
+def test_the_daily_cap_is_named_and_never_retried():
+    client, seen = _sequence((429, '{"error":{"message":"Rate limit exceeded: free-models-per-day"}}'))
+    with pytest.raises(ModelCallError, match="daily model limit"):
+        client.structured("system", "user", Extraction)
+    assert seen == [429]

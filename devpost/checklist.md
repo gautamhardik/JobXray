@@ -138,6 +138,13 @@ Activity mode: prior practice connected; map checked in the browser via its DOM 
 
 ## Revisions
 
+- Search and a browser added, at the learner's request ("use both"), because the official-site check was the main reason real jobs ended at VERIFY FIRST:
+  - Careers pages that need JavaScript are read in headless Chromium through Scrapling's `DynamicFetcher`. At most 2 such pages per investigation, about 8–12 s each, and every request inside the browser passes the private-address guard. Live: careers.infosys.com went from 13 characters to 3,702.
+  - SerpAPI search (optional key) finds the official site when the proposed domain fails, and the listing on the official site when the careers pages don't show the role. The identity checks and a page read still decide; a search snippet alone never verifies. At most 2 searches per investigation, cached for 7 days, because the learner has about 167 searches left.
+  - The fetch limit rose from 8 to 10 for the search fallback's pages.
+  - The model client now retries once per investigation after a passing failure (timeout, 5xx, busy provider, garbled answer). The retry brings its own call, so later steps keep theirs. The daily-cap 429 is never retried and now says when it resets.
+  - Verified: 168 tests pass, and no test can start a real browser or spend a real search. Live: the Infosys message still gives STOP in 54 s with 4 calls and 0 searches.
+- Company names with department words ("Amazon HR") no longer require "HR" on the official site.
 - Input audit, at the learner's request ("find every condition a user can put in that the app isn't ready for, then fix it"). Fixed:
   - A PDF or image link crashed the scraper (`UnicodeDecodeError`), including when an official careers link was a PDF. Now refused with a plain reason.
   - Outdated or closed posts (learner decision: VERIFY FIRST with its own advice, never STOP for age alone; stale after 30 days). Signs used: post age, passed deadline, graduated batch, and "No longer accepting applications".

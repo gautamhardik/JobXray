@@ -8,6 +8,7 @@ from app.investigation.challenge import ChallengePlan
 from app.investigation.plan import PlanProposal
 from app.llm.llm_client import LLMClient
 from app.web.scraper import FetchResult, Scraper, _result
+from app.web.search import Search, SearchAnswer, SearchBudgetExceeded
 
 PAGES = Path(__file__).parent / "fixtures" / "pages"
 
@@ -60,8 +61,9 @@ class _SavedResponse:
         return self._page.get_all_text(**kwargs)
 
 
-def saved_scraper(routes: dict[str, str | int], max_fetches: int = 8) -> Scraper:
-    """routes maps a URL to a fixture file name under tests/fixtures/pages, or to an HTTP status."""
+def saved_scraper(routes: dict[str, str | int], max_fetches: int = 10, rendered: dict[str, str] | None = None) -> Scraper:
+    """routes maps a URL to a fixture file name under tests/fixtures/pages, or to an HTTP status.
+    rendered maps a URL to the fixture a browser would see after JavaScript runs (no browser is started)."""
 
     def get(url: str):
         target = routes.get(url)
@@ -71,7 +73,28 @@ def saved_scraper(routes: dict[str, str | int], max_fetches: int = 8) -> Scraper
             return _SavedResponse(url, "<html></html>", status=target)
         return _SavedResponse(url, (PAGES / target).read_text(encoding="utf-8"))
 
-    return Scraper(max_fetches=max_fetches, get=get, guard=lambda url: (True, ""))
+    def render(url: str):
+        if url not in (rendered or {}):
+            raise ConnectionError("not reachable in the browser")
+        return _SavedResponse(url, (PAGES / rendered[url]).read_text(encoding="utf-8"))
+
+    return Scraper(max_fetches=max_fetches, get=get, guard=lambda url: (True, ""), render=render if rendered else None)
+
+
+class FakeSearch(Search):
+    """Answers queries from a dict of query substring to SearchAnswer; counts like the real one."""
+
+    def __init__(self, answers: dict[str, SearchAnswer], max_searches: int = 2):
+        super().__init__(max_searches=max_searches, api_key="test")
+        self.answers = answers
+        self.queries: list[str] = []
+
+    def search(self, query: str) -> SearchAnswer | None:
+        if self.searches >= self.max_searches:
+            raise SearchBudgetExceeded("budget")
+        self.searches += 1
+        self.queries.append(query)
+        return next((a for key, a in self.answers.items() if key in query), SearchAnswer())
 
 
 def fetched(url: str, fixture: str) -> FetchResult:

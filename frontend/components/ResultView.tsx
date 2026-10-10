@@ -135,6 +135,7 @@ export default function ResultView({ result, onReset }: Props) {
         <p>{result.rule}</p>
         <p className="muted small">
           The decision comes from fixed rules applied to the evidence above, not from the model&apos;s opinion.
+          {` ${result.model_calls} model call${result.model_calls === 1 ? "" : "s"}, ${result.fetches} page${result.fetches === 1 ? "" : "s"} read${result.searches ? `, ${result.searches} web search${result.searches === 1 ? "" : "es"}` : ""}.`}
           {result.dropped_quotes > 0 &&
             ` ${result.dropped_quotes} quoted passage${result.dropped_quotes === 1 ? " was" : "s were"} discarded because ${result.dropped_quotes === 1 ? "it was" : "they were"} not in your text.`}
         </p>
