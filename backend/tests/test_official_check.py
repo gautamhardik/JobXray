@@ -165,3 +165,12 @@ def test_probed_careers_page_is_read_without_fetching_it_again():
     result = run_investigation(FEE_TEXT, client, scraper)
     assert _record(result, "opportunity").status == "verified"
     assert result.decision == "PROCEED"
+
+
+def test_department_words_in_the_company_name_are_not_required_on_the_site():
+    from app.investigation.plan import _company_tokens
+
+    assert _company_tokens("Amazon HR") == ["amazon"]
+    assert _company_tokens("Infosys Talent Acquisition Team") == ["infosys"]
+    check = check_domain("nexora.example", "Nexora HR Team", saved_scraper({HOME: "nexora_home.html"}))
+    assert check.established

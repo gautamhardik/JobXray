@@ -92,6 +92,8 @@ def _same_site(url: str, domain: str) -> bool:
 
 def _company_tokens(company: str) -> list[str]:
     stop = {"pvt", "ltd", "limited", "inc", "llc", "the", "and", "of", "private", "technologies", "technology", "solutions", "services", "group", "india", "global"}
+    # Department words that come with a recruiter's signature ("Amazon HR"), not part of the company's name.
+    stop |= {"hr", "team", "careers", "career", "recruitment", "recruiting", "talent", "acquisition", "hiring", "department"}
     words = [w for w in re.findall(r"[a-z0-9]+", company.lower()) if w not in stop and len(w) > 1]
     if words:
         return words
