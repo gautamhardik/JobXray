@@ -108,6 +108,8 @@ def test_candidates_skip_sites_that_only_write_about_the_company():
         SearchResult(title="", url="https://www.nexora.example/about"),
     ])
     assert domain_candidates(answer, "Nexora Technologies", tried=None) == ["nexora.example"]
+    sub = SearchAnswer(results=[SearchResult(title="", url="https://erp.nexora.example/jobs/intern")])
+    assert domain_candidates(sub, "Nexora Technologies", tried=None) == ["nexora.example"]
     tcs = SearchAnswer(results=[SearchResult(title="", url="https://www.tcs.com/")])
     assert domain_candidates(tcs, "Tata Consultancy Services", tried=None) == ["tcs.com"]
 
@@ -191,8 +193,11 @@ def test_search_is_not_used_when_the_careers_page_already_verifies():
         ("Business Analyst Internship", "Business Analyst - 3 years experience", False),
         ("Data Analyst", "Senior Data Analyst, Pune", True),
         ("Internship", "Summer internships 2026", False),  # nothing specific to look for
+        ("Full Stack Development Internship", "Full Stack Developer Intern", True),  # live: erp.vidyalai.com/jobs
+        ("Software Engineering Intern", "Software Engineer Intern, Bengaluru", True),
+        ("Full Stack Development Internship", "HR Intern", False),
     ],
-    ids=["intern-vs-internship", "not-an-internship", "plain-role", "too-generic"],
+    ids=["intern-vs-internship", "not-an-internship", "plain-role", "too-generic", "developer-vs-development", "engineer-vs-engineering", "other-intern"],
 )
 def test_role_matching(role, line, found):
     assert (role_in(role, line) is not None) == found

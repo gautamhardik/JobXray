@@ -67,14 +67,14 @@ def domain_candidates(answer, company: str, tried: str | None) -> list[str]:
         if base in seen or not _names_company(host, company):
             continue
         seen.add(base)
-        out.append(host)
+        out.append(base)  # the company's homepage lives at the main domain, not at erp. or jobs.
     return out[:MAX_DOMAIN_CANDIDATES]
 
 
 def discover_domain(company: str, tried: str | None, scraper: Scraper, search: Search) -> DomainCheck | None:
     """An established official domain found through search, or None."""
     try:
-        answer = search.search(f"{company} official website")
+        answer = search.search(f"\"{company}\" official website")  # quoted: exact name, not a lookalike word
     except SearchBudgetExceeded:
         return None
     if answer is None:
@@ -94,6 +94,11 @@ def role_words(role: str) -> list[str]:
     return words
 
 
+def _word_pattern(word: str) -> str:
+    """Long words match by stem, so "Development" finds "Developer" and "Engineering" finds "Engineer"."""
+    return rf"\b{re.escape(word[:5])}\w*" if len(word) >= 6 else rf"\b{re.escape(word)}\b"
+
+
 def role_in(role: str, text: str) -> str | None:
     """The line where every significant word of the role appears (and "intern" too, for internships)."""
     words = role_words(role)
@@ -102,7 +107,7 @@ def role_in(role: str, text: str) -> str | None:
     wants_intern = bool(re.search(r"\bintern", role, re.I))
     for line in text.splitlines():
         low = line.casefold()
-        if all(re.search(rf"\b{re.escape(w)}\b", low) for w in words) and (not wants_intern or "intern" in low):
+        if all(re.search(_word_pattern(w), low) for w in words) and (not wants_intern or "intern" in low):
             return line.strip()[:200]
     return None
 

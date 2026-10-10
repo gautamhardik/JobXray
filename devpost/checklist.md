@@ -145,6 +145,13 @@ Activity mode: prior practice connected; map checked in the browser via its DOM 
   - The model client now retries once per investigation after a passing failure (timeout, 5xx, busy provider, garbled answer). The retry brings its own call, so later steps keep theirs. The daily-cap 429 is never retried and now says when it resets.
   - Verified: 168 tests pass, and no test can start a real browser or spend a real search. Live: the Infosys message still gives STOP in 54 s with 4 calls and 0 searches.
 - Company names with department words ("Amazon HR") no longer require "HR" on the official site.
+- Live search checks, after the learner added the key (3 searches used; the account showed 83 left, not 167):
+  - "Vidyalai official website" returned only "Vidyalaya" look-alikes, and the candidate filter rejected all of them. The company name is now quoted in the search.
+  - The quoted search found erp.vidyalai.com. Candidates are now tried at the main domain, and vidyalai.com passed all six identity checks.
+  - A listing search returned unrelated pages, and the same-site filter ignored them.
+  - Role matching now uses word stems, after Vidyalai's jobs page listed "Full Stack Developer Intern" for "Full Stack Development Internship".
+  - First live PROCEED on a real job: the Vidyalai LinkedIn internship. The official site was established, and the role was confirmed on erp.vidyalai.com/jobs (84 s, 4 model calls, 0 searches).
+  - 171 tests pass.
 - Input audit, at the learner's request ("find every condition a user can put in that the app isn't ready for, then fix it"). Fixed:
   - A PDF or image link crashed the scraper (`UnicodeDecodeError`), including when an official careers link was a PDF. Now refused with a plain reason.
   - Outdated or closed posts (learner decision: VERIFY FIRST with its own advice, never STOP for age alone; stale after 30 days). Signs used: post age, passed deadline, graduated batch, and "No longer accepting applications".
