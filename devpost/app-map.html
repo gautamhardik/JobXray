@@ -59,7 +59,7 @@
   <div class="card">
     <svg viewBox="0 0 760 330" role="img" aria-labelledby="flow-title flow-desc">
       <title id="flow-title">Path of one investigation</title>
-      <desc id="flow-desc">The pasted text goes from the paste box to the API, through model extraction and a code quote check, to the official-site check, then the code rules decide, the model challenges, and the result view shows the decision.</desc>
+      <desc id="flow-desc">The pasted text goes from the paste box to the API, through model extraction and a code quote check, to the official-site check, adds code checks for outdated posts, recruiter emails and links, OTP requests and task scams, then the code rules decide, the model challenges, and the result view shows the decision.</desc>
       <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
       <rect class="box" x="10" y="20" width="170" height="56" rx="8"/>
       <text class="label" x="22" y="44">PasteBox.tsx</text><text x="22" y="62">you click Investigate</text>
@@ -81,6 +81,9 @@
       <text class="label" x="22" y="264">challenge.py</text><text x="22" y="282">call 4: try to disprove</text>
       <rect class="box" x="215" y="240" width="170" height="56" rx="8"/>
       <text class="label" x="227" y="264">ResultView.tsx</text><text x="227" y="282">STOP / VERIFY / PROCEED</text>
+      <rect class="code" x="420" y="240" width="330" height="56" rx="8"/>
+      <text class="label" x="432" y="264">freshness · channels · sensitive · tasks</text><text x="432" y="282">outdated post, emails and links, OTP, paid likes</text>
+      <path class="edge" d="M585 240 V213 H150 V188" marker-end="url(#arrow)"/>
       <path class="edge" d="M180 48 H213" marker-end="url(#arrow)"/>
       <path class="edge" d="M385 48 H418" marker-end="url(#arrow)"/>
       <path class="edge" d="M575 48 H603" marker-end="url(#arrow)"/>
@@ -99,6 +102,7 @@
   <ol>
     <li><strong>Where the model's reading gets checked:</strong> <code>backend/app/investigation/extract.py</code>, search <code>def check_quotes</code>. Quotes that aren't really in your text are dropped, and a "we never charge any fee" sentence is reclassified so it can never count as a payment request (<code>backend/app/evidence/no_fee.py</code>).</li>
     <li><strong>Where the verdict is decided:</strong> <code>backend/app/evidence/status.py</code>, search <code>def opportunity_status</code> and <code>def decide</code>. Verified, Unverified, Unknown and Contradiction come from what was observed, and the decision comes from fixed rules, not from the model's opinion.</li>
+    <li><strong>Where the checks beyond the official site live:</strong> <code>backend/app/evidence/freshness.py</code> (outdated or closed posts), <code>channels.py</code> (recruiter emails and links against the official domain), <code>sensitive.py</code> (OTP and passwords versus documents) and <code>tasks.py</code> (paid likes and ratings). Each is plain code; <code>record_signals</code> in <code>pipeline.py</code> feeds them to the rules.</li>
     <li><strong>Where the whole sequence runs:</strong> <code>backend/app/investigation/pipeline.py</code>, search <code>def run_investigation</code> and <code>def check_official_sources</code>. This is where calls 1–4, the page fetches and the budgets come together.</li>
   </ol>
 
@@ -106,7 +110,8 @@
   <ul>
     <li><strong>Decision wording or next steps:</strong> <code>NEXT_STEP</code> and <code>SEVERITY</code> in <code>backend/app/evidence/status.py</code>.</li>
     <li><strong>What the model is told:</strong> the prompt files in <code>backend/app/prompts/</code> (<code>extract.md</code>, <code>plan.md</code>, <code>observe.md</code>, <code>challenge.md</code>, <code>transcribe.md</code>).</li>
-    <li><strong>Limits (characters, fetches, model calls):</strong> <code>backend/app/config.py</code>.</li>
+    <li><strong>When a post counts as outdated:</strong> <code>STALE_AFTER_DAYS</code> in <code>backend/app/evidence/freshness.py</code> (30 days).</li>
+    <li><strong>Limits (characters, fetches, model calls, screenshots):</strong> <code>backend/app/config.py</code>.</li>
     <li><strong>Which free models are used:</strong> <code>OPENROUTER_MODEL</code> and <code>VISION_MODEL</code> in <code>backend/.env</code>.</li>
     <li><strong>The look and motion:</strong> <code>frontend/app/globals.css</code> and the beam in <code>frontend/components/XrayBackdrop.tsx</code>.</li>
     <li><strong>The saved example:</strong> re-save with <code>python -m scripts.save_example &lt;file&gt;</code> from <code>backend/</code>.</li>

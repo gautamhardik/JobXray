@@ -1,6 +1,6 @@
 # JobXray
 
-**X-ray the job before you apply.** JobXray investigates a suspicious job or internship offer before you pay, apply, or share anything. Paste the recruiter messages, a link to the posting, or a screenshot. JobXray reads the recruitment funnel, checks the claimed opportunity against the company's official website, challenges its own first verdict, and tells you to **Proceed**, **Verify First**, or **Stop**, with the evidence behind it.
+**X-ray the job before you apply.** JobXray investigates a suspicious job or internship offer before you pay, apply, or share anything. Paste the recruiter messages, a link to the posting (LinkedIn job and post links included), or up to three screenshots. JobXray reads the recruitment funnel, checks the claimed opportunity against the company's official website, flags outdated posts, personal-email recruiters, look-alike links, OTP requests and paid-likes task scams, challenges its own first verdict, and tells you to **Proceed**, **Verify First**, or **Stop**, with the evidence behind it.
 
 Built for Devpost's *Build With AI: Basics* hackathon with the Devpost Learn skill pack. The planning documents are in [`devpost/`](devpost/): [`scope.md`](devpost/scope.md), [`prd.md`](devpost/prd.md), [`spec.md`](devpost/spec.md), and the build [`checklist.md`](devpost/checklist.md).
 
@@ -34,7 +34,7 @@ Open http://localhost:3000. The frontend reads the backend address from `NEXT_PU
 
 **Environment (`backend/.env`, never committed):** `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (default `nvidia/nemotron-3-super-120b-a12b:free`), `VISION_MODEL` for screenshots (default `dots-studio/dots-3-note-preview:free`).
 
-**Limits per investigation:** 10,000 characters of text, 8 page fetches, 4 model calls (5 for screenshots), one self-challenge round. Free OpenRouter models allow 50 requests a day on a new account (about 12 investigations).
+**Limits per investigation:** 10,000 characters of text, 8 page fetches, 4 model calls (5 for screenshots, plus one retry if the free model returns an empty answer), up to 3 screenshots, one self-challenge round. Free OpenRouter models allow 50 requests a day on a new account (about 12 investigations).
 
 **Example without the model:** after saving one real run with `python -m scripts.save_example tests/fixtures/realworld/india_internship_upi.txt` (from `backend/`), "Try an example" loads it offline, labelled Cached.
 
